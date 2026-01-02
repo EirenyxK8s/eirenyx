@@ -60,7 +60,8 @@ type Tool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitzero"`
 
-	Spec   ToolSpec   `json:"spec"`
+	Spec ToolSpec `json:"spec"`
+	// +optional
 	Status ToolStatus `json:"status,omitzero"`
 }
 
