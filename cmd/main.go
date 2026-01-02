@@ -21,6 +21,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/EirenyxK8s/eirenyx/internal/tools"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -35,7 +36,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	eirenyxv1alpha1 "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
+	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	"github.com/EirenyxK8s/eirenyx/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -48,7 +49,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(eirenyxv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(eirenyx.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -188,6 +189,12 @@ func main() {
 	if err := (&controller.ToolReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+
+		Service: map[eirenyx.ToolType]tools.ToolService{
+			eirenyx.ToolTrivy:  &tools.TrivyService{},
+			eirenyx.ToolFalco:  &tools.FalcoService{},
+			eirenyx.ToolLitmus: &tools.LitmusService{},
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Tool")
 		os.Exit(1)

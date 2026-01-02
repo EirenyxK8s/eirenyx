@@ -1,18 +1,49 @@
-# eirenyx
-// TODO(user): Add simple overview of use/purpose
+# Eirenyx
+
+Eirenyx is a Kubernetes operator that acts as a unified control plane for security scanning, runtime threat detection,
+and resilience testing. It orchestrates existing Kubernetes-native tools (Trivy, Falco, and Litmus) through a single
+declarative interface.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+Modern Kubernetes clusters rely on multiple specialized tools for vulnerability scanning, runtime security, and
+resilience testing. These tools are typically deployed and operated independently, which leads to fragmented
+configuration, uncorrelated results, and limited automation.
+
+Eirenyx introduces a unifying Kubernetes operator that manages the lifecycle of security and chaos tools and exposes a
+single policy-driven interface for triggering scans, detecting runtime threats, and executing resilience experiments.
+
+Rather than replacing existing tools, Eirenyx coordinates them and correlates their outputs, producing policy-level
+reports that provide actionable insight into cluster security and stability.
+
+## Core Concepts
+
+### Tool
+
+A Tool represents the declarative installation and configuration of
+external systems such as Trivy, Falco, or Litmus.
+
+### Policy
+
+A Policy defines how enabled tools should be used to scan, monitor, or
+test Kubernetes workloads.
+
+### Report
+
+A Report aggregates and correlates the results produced by the tools
+for a given policy.
 
 ## Getting Started
 
 ### Prerequisites
+
 - go version v1.24.6+
 - docker version 17.03+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
 ### To Deploy on the cluster
+
 **Build and push your image to the location specified by `IMG`:**
 
 ```sh
@@ -36,7 +67,7 @@ make deploy IMG=<some-registry>/eirenyx:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+> privileges or be logged in as admin.
 
 **Create instances of your solution**
 You can apply the samples (examples) from the config/sample:
@@ -45,9 +76,10 @@ You can apply the samples (examples) from the config/sample:
 kubectl apply -k config/samples/
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+> **NOTE**: Ensure that the samples has default values to test it out.
 
 ### To Uninstall
+
 **Delete the instances (CRs) from the cluster:**
 
 ```sh
@@ -101,7 +133,7 @@ kubebuilder edit --plugins=helm/v2-alpha
 ```
 
 2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
+   can obtain this solution from there.
 
 **NOTE:** If you change the project, you need to update the Helm Chart
 using the same command above to sync the latest changes. Furthermore,
@@ -111,7 +143,9 @@ previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml
 is manually re-applied afterwards.
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+
+This project is developed as part of an academic thesis.
+Contributions are currently limited to bug reports and design discussions.
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
 
