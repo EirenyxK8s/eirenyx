@@ -37,27 +37,45 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of Tool
+            description: ToolSpec defines the desired state of Tool
             properties:
-              foo:
-                description: foo is an example field of Tool. Edit tool_types.go to
-                  remove/update
+              enabled:
+                type: boolean
+              helm:
+                properties:
+                  chart:
+                    type: string
+                  repo:
+                    type: string
+                  values:
+                    description: Raw Helm values as embedded YAML/JSON
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                  version:
+                    type: string
+                required:
+                - chart
+                - repo
+                - version
+                type: object
+              installMethod:
                 type: string
+              namespace:
+                type: string
+              type:
+                type: string
+            required:
+            - enabled
+            - installMethod
+            - namespace
+            - type
             type: object
           status:
-            description: status defines the observed state of Tool
+            description: ToolStatus defines the observed state of the Tool.
             properties:
               conditions:
-                description: |-
-                  conditions represent the current state of the Tool resource.
-                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
-
-                  Standard condition types include:
-                  - "Available": the resource is fully functional
-                  - "Progressing": the resource is being created or updated
-                  - "Degraded": the resource failed to reach or maintain its desired state
-
-                  The status of each condition is one of True, False, or Unknown.
+                description: The status of each condition is one of True, False, or
+                  Unknown.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -116,9 +134,17 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              healthy:
+                type: boolean
+              installed:
+                type: boolean
+              version:
+                type: string
             type: object
         required:
+        - metadata
         - spec
+        - status
         type: object
     served: true
     storage: true

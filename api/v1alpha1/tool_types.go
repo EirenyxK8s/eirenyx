@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type ToolType string
@@ -20,10 +21,13 @@ const (
 )
 
 type HelmInstallSpec struct {
-	Repo    string                 `json:"repo"`
-	Chart   string                 `json:"chart"`
-	Version string                 `json:"version"`
-	Values  map[string]interface{} `json:"values,omitempty"`
+	Repo    string `json:"repo"`
+	Chart   string `json:"chart"`
+	Version string `json:"version"`
+
+	// Raw Helm values as embedded YAML/JSON
+	// +kubebuilder:validation:Optional
+	Values *runtime.RawExtension `json:"values,omitempty"`
 }
 
 // ToolSpec defines the desired state of Tool
