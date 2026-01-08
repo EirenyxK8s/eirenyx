@@ -1,0 +1,18 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Tool
+metadata:
+  labels:
+    app.kubernetes.io/name: eirenyx
+    app.kubernetes.io/managed-by: kustomize
+  name: falco
+spec:
+  type: falco
+  enabled: true
+  installMethod: helm
+  namespace: falco
+  helm:
+    repo: https://falcosecurity.github.io/charts
+    chart: falco
+    values:
+      falcosidekick:
+        enabled: false

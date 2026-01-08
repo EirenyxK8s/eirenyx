@@ -1,13 +1,13 @@
 #!/usr/bin/env sh
 set -e
 
-IMG_DEFAULT="eirenyxk8s/eirenyx:latest"
+IMG_DEFAULT="ivannik2910/eirenyx:latest"
 IMG="${IMG:-$IMG_DEFAULT}"
 
 cmd="$1"
 
 usage() {
-  echo "Usage: ./eirenyx.sh <command>"
+  echo "Usage: ./make.sh <command>"
   echo ""
   echo "Commands:"
   echo "  dev          Generate + manifests + run locally"

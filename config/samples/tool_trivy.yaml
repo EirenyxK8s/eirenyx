@@ -1,0 +1,15 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Tool
+metadata:
+  labels:
+    app.kubernetes.io/name: eirenyx
+    app.kubernetes.io/managed-by: kustomize
+  name: trivy
+spec:
+  type: trivy
+  enabled: true
+  installMethod: helm
+  namespace: trivy-system
+  helm:
+    repo: https://aquasecurity.github.io/helm-charts
+    chart: trivy-operator

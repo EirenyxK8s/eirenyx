@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/EirenyxK8s/eirenyx/internal/tools"
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,8 +52,9 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 	}
 
-	healthy, err := service.CheckHealth(ctx, &tool)
-	if err != nil {
+	healthy := service.CheckHealth(ctx, &tool)
+	if !healthy {
+		err := errors.New("tool is not healthy")
 		log.Error(err, "Failed to check health of tool", "tool", tool.Spec.Type)
 		return ctrl.Result{RequeueAfter: time.Minute}, err
 	}

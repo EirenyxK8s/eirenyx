@@ -13,5 +13,5 @@ type ToolService interface {
 
 	EnsureUninstalled(ctx context.Context, tool *eirenyx.Tool) error
 
-	CheckHealth(ctx context.Context, tool *eirenyx.Tool) (bool, error)
+	CheckHealth(ctx context.Context, tool *eirenyx.Tool) bool
 }

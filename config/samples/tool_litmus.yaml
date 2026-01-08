@@ -1,0 +1,20 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Tool
+metadata:
+  labels:
+    app.kubernetes.io/name: eirenyx
+    app.kubernetes.io/managed-by: kustomize
+  name: litmus
+spec:
+  type: litmus
+  enabled: true
+  installMethod: helm
+  namespace: litmus
+  helm:
+    repo: https://litmuschaos.github.io/litmus-helm/
+    chart: litmus
+    values:
+      portal:
+        frontend:
+          service:
+            type: ClusterIP
