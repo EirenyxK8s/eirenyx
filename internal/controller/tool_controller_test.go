@@ -36,10 +36,9 @@ var _ = Describe("Tool Controller", func() {
 						Namespace: "default",
 					},
 					Spec: eirenyxv1alpha1.ToolSpec{
-						Type:          eirenyxv1alpha1.ToolTrivy,
-						Enabled:       false,
-						Namespace:     "trivy-system",
-						InstallMethod: eirenyxv1alpha1.HelmInstall,
+						Type:      eirenyxv1alpha1.ToolTrivy,
+						Enabled:   false,
+						Namespace: "trivy-system",
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())

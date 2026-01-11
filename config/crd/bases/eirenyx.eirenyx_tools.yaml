@@ -41,32 +41,12 @@ spec:
             properties:
               enabled:
                 type: boolean
-              helm:
-                properties:
-                  chart:
-                    type: string
-                  repo:
-                    type: string
-                  values:
-                    description: Raw Helm values as embedded YAML/JSON
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
-                  version:
-                    type: string
-                required:
-                - chart
-                - repo
-                - version
-                type: object
-              installMethod:
-                type: string
               namespace:
                 type: string
               type:
                 type: string
             required:
             - enabled
-            - installMethod
             - namespace
             - type
             type: object

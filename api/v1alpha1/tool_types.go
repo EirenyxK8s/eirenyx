@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type ToolType string
@@ -13,30 +12,13 @@ const (
 	ToolLitmus ToolType = "litmus"
 )
 
-type InstallMethod string
-
-const (
-	HelmInstall     InstallMethod = "helm"
-	ManifestInstall InstallMethod = "manifest"
-)
-
-type HelmInstallSpec struct {
-	Repo    string `json:"repo"`
-	Chart   string `json:"chart"`
-	Version string `json:"version"`
-
-	// Raw Helm values as embedded YAML/JSON
-	// +kubebuilder:validation:Optional
-	Values *runtime.RawExtension `json:"values,omitempty"`
-}
+const ToolFinalizer = "eirenyx.tool/finalizer"
 
 // ToolSpec defines the desired state of Tool
 type ToolSpec struct {
-	Type          ToolType         `json:"type"`
-	Enabled       bool             `json:"enabled"`
-	Namespace     string           `json:"namespace"`
-	InstallMethod InstallMethod    `json:"installMethod"`
-	Helm          *HelmInstallSpec `json:"helm,omitempty"`
+	Type      ToolType `json:"type"`
+	Enabled   bool     `json:"enabled"`
+	Namespace string   `json:"namespace"`
 }
 
 // ToolStatus defines the observed state of the Tool.

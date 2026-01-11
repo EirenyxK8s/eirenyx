@@ -8,11 +8,4 @@ metadata:
 spec:
   type: falco
   enabled: true
-  installMethod: helm
   namespace: falco
-  helm:
-    repo: https://falcosecurity.github.io/charts
-    chart: falco
-    values:
-      falcosidekick:
-        enabled: false

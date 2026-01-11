@@ -8,8 +8,4 @@ metadata:
 spec:
   type: trivy
   enabled: true
-  installMethod: helm
   namespace: trivy-system
-  helm:
-    repo: https://aquasecurity.github.io/helm-charts
-    chart: trivy-operator
