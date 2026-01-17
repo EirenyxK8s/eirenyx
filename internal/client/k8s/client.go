@@ -1,0 +1,140 @@
+package k8s
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+var (
+	kubeClient *kubernetes.Clientset
+	initOnce   sync.Once
+	initErr    error
+)
+
+// GetK8sClient returns a singleton Kubernetes clientset
+func GetK8sClient() (*kubernetes.Clientset, error) {
+	initOnce.Do(func() {
+		cfg := ctrl.GetConfigOrDie()
+		kubeClient, initErr = kubernetes.NewForConfig(cfg)
+		if initErr != nil {
+			initErr = fmt.Errorf("failed to create kube client: %w", initErr)
+		}
+	})
+
+	return kubeClient, initErr
+}
+
+// EnsureK8sNamespace ensures that the specified namespace exists in the cluster
+func EnsureK8sNamespace(ctx context.Context, namespace string) error {
+	k8sClient, err := GetK8sClient()
+	if err != nil {
+		return err
+	}
+
+	_, err = k8sClient.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		_, err = k8sClient.CoreV1().Namespaces().Create(
+			ctx,
+			&corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespace,
+				},
+			},
+			metav1.CreateOptions{},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create namespace %s: %w", namespace, err)
+		}
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to get namespace %s: %w", namespace, err)
+	}
+
+	return nil
+}
+
+// GetDeployment retrieves a deployment by namespace and name
+func GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
+	k8sClient, err := GetK8sClient()
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient.AppsV1().
+		Deployments(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+}
+
+// EnsureDeploymentRun waits for the deployment to become ready
+func EnsureDeploymentRun(ctx context.Context, namespace string, deployName string) (bool, error) {
+	k8sClient, err := GetK8sClient()
+	if err != nil {
+		return false, err
+	}
+
+	for start := time.Now(); time.Since(start) < 3*time.Minute; {
+		deploy, err := k8sClient.AppsV1().
+			Deployments(namespace).
+			Get(ctx, deployName, metav1.GetOptions{})
+
+		if err != nil {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		if isDeploymentReady(deploy) {
+			return true, nil
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+	return false, nil
+}
+
+func isDeploymentReady(d *appsv1.Deployment) bool {
+	if d.Status.ObservedGeneration < d.Generation {
+		return false
+	}
+	for _, cond := range d.Status.Conditions {
+		if cond.Type == appsv1.DeploymentAvailable &&
+			cond.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+	return false
+}
+
+func IsDaemonSetReady(ctx context.Context, namespace, name string) (bool, error) {
+	k8sClient, err := GetK8sClient()
+	if err != nil {
+		return false, err
+	}
+
+	ds, err := k8sClient.AppsV1().
+		DaemonSets(namespace).
+		Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return false, nil
+	}
+
+	if ds.Status.NumberReady == 0 {
+		return false, nil
+	}
+
+	if ds.Status.NumberReady < ds.Status.DesiredNumberScheduled {
+		return false, nil
+	}
+
+	return true, nil
+}

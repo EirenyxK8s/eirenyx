@@ -1,0 +1,11 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Tool
+metadata:
+  labels:
+    app.kubernetes.io/name: eirenyx
+    app.kubernetes.io/managed-by: kustomize
+  name: trivy
+spec:
+  type: trivy
+  enabled: true
+  namespace: trivy-system

@@ -1,5 +1,6 @@
-## Append samples of your project ##
 resources:
-- eirenyx_v1alpha1_policy.yaml
-- eirenyx_v1alpha1_tool.yaml
+  - tool_falco.yaml
+  - tool_litmus.yaml
+  - tool_trivy.yaml
+  - eirenyx_v1alpha1_policy.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
