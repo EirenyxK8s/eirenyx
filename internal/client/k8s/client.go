@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -77,10 +78,12 @@ func GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deploym
 }
 
 // EnsureDeploymentRun waits for the deployment to become ready
-func EnsureDeploymentRun(ctx context.Context, namespace string, deployName string) (bool, error) {
+func EnsureDeploymentRun(ctx context.Context, namespace string, deployName string) bool {
+	log := logf.FromContext(ctx)
 	k8sClient, err := GetK8sClient()
 	if err != nil {
-		return false, err
+		log.Error(err, "failed to get k8s client")
+		return false
 	}
 
 	for start := time.Now(); time.Since(start) < 3*time.Minute; {
@@ -94,12 +97,12 @@ func EnsureDeploymentRun(ctx context.Context, namespace string, deployName strin
 		}
 
 		if isDeploymentReady(deploy) {
-			return true, nil
+			return true
 		}
 
 		time.Sleep(5 * time.Second)
 	}
-	return false, nil
+	return false
 }
 
 func isDeploymentReady(d *appsv1.Deployment) bool {
@@ -115,26 +118,28 @@ func isDeploymentReady(d *appsv1.Deployment) bool {
 	return false
 }
 
-func IsDaemonSetReady(ctx context.Context, namespace, name string) (bool, error) {
+func IsDaemonSetReady(ctx context.Context, namespace, name string) bool {
+	log := logf.FromContext(ctx)
 	k8sClient, err := GetK8sClient()
 	if err != nil {
-		return false, err
+		log.Error(err, "failed to get k8s client")
+		return false
 	}
 
 	ds, err := k8sClient.AppsV1().
 		DaemonSets(namespace).
 		Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return false, nil
+		return false
 	}
 
 	if ds.Status.NumberReady == 0 {
-		return false, nil
+		return false
 	}
 
 	if ds.Status.NumberReady < ds.Status.DesiredNumberScheduled {
-		return false, nil
+		return false
 	}
 
-	return true, nil
+	return true
 }

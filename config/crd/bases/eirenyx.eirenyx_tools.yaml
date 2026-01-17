@@ -45,9 +45,13 @@ spec:
                 type: string
               type:
                 type: string
+              values:
+                description: Values contain Helm values passed directly to the tool
+                  chart.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
             required:
             - enabled
-            - namespace
             - type
             type: object
           status:
