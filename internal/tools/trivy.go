@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	namespace   = "trivy-system"
-	releaseName = "trivy-operator"
+	trivyNamespace   = "trivy-system"
+	trivyReleaseName = "trivy-operator"
 )
 
 type TrivyService struct {
@@ -33,7 +33,7 @@ func (t *TrivyService) EnsureInstalled(ctx context.Context, tool *eirenyx.Tool) 
 	log.Info("Installing or upgrading Trivy Operator")
 	ns := tool.Spec.Namespace
 	if ns == "" {
-		ns = namespace
+		ns = trivyNamespace
 	}
 
 	if err := k8s.EnsureK8sNamespace(ctx, ns); err != nil {
@@ -97,10 +97,10 @@ func (t *TrivyService) EnsureInstalled(ctx context.Context, tool *eirenyx.Tool) 
 	chartRef := "aqua/trivy-operator"
 
 	get := helmaction.NewGet(actionConfig)
-	if _, err = get.Run(releaseName); err != nil {
+	if _, err = get.Run(trivyReleaseName); err != nil {
 		log.Info("Installing Trivy Operator")
 		install := helmaction.NewInstall(actionConfig)
-		install.ReleaseName = releaseName
+		install.ReleaseName = trivyReleaseName
 		install.Namespace = ns
 		install.Wait = true
 		install.Timeout = 5 * time.Minute
@@ -135,15 +135,11 @@ func (t *TrivyService) EnsureInstalled(ctx context.Context, tool *eirenyx.Tool) 
 			return err
 		}
 
-		if _, err := upgrade.Run(releaseName, chart, map[string]interface{}{}); err != nil {
+		if _, err := upgrade.Run(trivyReleaseName, chart, map[string]interface{}{}); err != nil {
 			return err
 		}
 	}
-
-	if done, _ := k8s.EnsureDeploymentRun(ctx, ns, "trivy-operator"); !done {
-		return fmt.Errorf("trivy operator deployment not ready")
-	}
-
+	
 	log.Info("Trivy Operator installed successfully")
 	return nil
 }
@@ -153,7 +149,7 @@ func (t *TrivyService) EnsureUninstalled(ctx context.Context, tool *eirenyx.Tool
 	log.Info("Uninstalling Trivy Operator")
 	ns := tool.Spec.Namespace
 	if ns == "" {
-		ns = namespace
+		ns = trivyNamespace
 	}
 
 	settings := helmcli.New()
@@ -173,7 +169,7 @@ func (t *TrivyService) EnsureUninstalled(ctx context.Context, tool *eirenyx.Tool
 	uninstall := helmaction.NewUninstall(actionConfig)
 	uninstall.Timeout = 5 * time.Minute
 
-	_, err := uninstall.Run(releaseName)
+	_, err := uninstall.Run(trivyReleaseName)
 	if err != nil {
 		return fmt.Errorf("failed to uninstall trivy-operator: %w", err)
 	}
@@ -187,9 +183,9 @@ func (t *TrivyService) CheckHealth(ctx context.Context, tool *eirenyx.Tool) bool
 	log.Info("Checking Trivy Operator health")
 	ns := tool.Spec.Namespace
 	if ns == "" {
-		ns = namespace
+		ns = trivyNamespace
 	}
 
-	done, _ := k8s.EnsureDeploymentRun(ctx, ns, releaseName)
+	done, _ := k8s.EnsureDeploymentRun(ctx, ns, trivyReleaseName)
 	return done
 }
