@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 type ToolType string
@@ -18,7 +19,12 @@ const ToolFinalizer = "eirenyx.tool/finalizer"
 type ToolSpec struct {
 	Type      ToolType `json:"type"`
 	Enabled   bool     `json:"enabled"`
-	Namespace string   `json:"namespace"`
+	Namespace string   `json:"namespace,omitempty"`
+
+	// Values contain Helm values passed directly to the tool chart.
+	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Values runtime.RawExtension `json:"values,omitempty"`
 }
 
 // ToolStatus defines the observed state of the Tool.
