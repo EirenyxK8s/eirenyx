@@ -1,6 +1,6 @@
 resources:
-  - tool_falco.yaml
-  - tool_litmus.yaml
-  - tool_trivy.yaml
+  - tools/tool_falco.yaml
+  - tools/tool_litmus.yaml
+  - tools/tool_trivy.yaml
   - eirenyx_v1alpha1_policy.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
