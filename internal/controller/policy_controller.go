@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	eirenyxv1alpha1 "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
+	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 )
 
 // PolicyReconciler reconciles a Policy object
@@ -42,9 +42,9 @@ type PolicyReconciler struct {
 func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = logf.FromContext(ctx)
 
-	var policy eirenyxv1alpha1.Policy
+	var policy eirenyx.Policy
 	if err := r.Get(ctx, req.NamespacedName, &policy); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return CompleteWithError(client.IgnoreNotFound(err))
 	}
 
 	engine, err := policyfactory.NewEngine(&policy, policyfactory.Dependencies{
@@ -53,19 +53,19 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	})
 
 	if err != nil {
-		return ctrl.Result{}, err
+		return CompleteWithError(err)
 	}
 
 	if !policy.Spec.Base.Enabled {
-		return ctrl.Result{}, engine.Cleanup(ctx, &policy)
+		return CompleteWithError(engine.Cleanup(ctx, &policy))
 	}
 
 	if err := engine.Validate(&policy); err != nil {
-		return ctrl.Result{}, err
+		return CompleteWithError(err)
 	}
 
 	if err := engine.Reconcile(ctx, &policy); err != nil {
-		return ctrl.Result{}, err
+		return CompleteWithError(err)
 	}
 
 	reportName, err := engine.GenerateReport(ctx, &policy)
@@ -74,13 +74,13 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		_ = r.Status().Update(ctx, &policy)
 	}
 
-	return ctrl.Result{}, nil
+	return Complete()
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&eirenyxv1alpha1.Policy{}).
+		For(&eirenyx.Policy{}).
 		Named("policy").
 		Complete(r)
 }

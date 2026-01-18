@@ -1,4 +1,4 @@
-package falco
+package trivy
 
 import (
 	"context"
@@ -26,5 +26,5 @@ func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
 }
 
 func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (string, error) {
-	return "falco-report-name", nil
+	return "trivy-report-name", nil
 }

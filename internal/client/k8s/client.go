@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -27,7 +28,7 @@ func GetK8sClient() (*kubernetes.Clientset, error) {
 		cfg := ctrl.GetConfigOrDie()
 		kubeClient, initErr = kubernetes.NewForConfig(cfg)
 		if initErr != nil {
-			initErr = fmt.Errorf("failed to create kube client: %w", initErr)
+			initErr = errors.New(fmt.Sprintf("failed to create kube client: %s", initErr))
 		}
 	})
 
@@ -53,13 +54,13 @@ func EnsureK8sNamespace(ctx context.Context, namespace string) error {
 			metav1.CreateOptions{},
 		)
 		if err != nil {
-			return fmt.Errorf("failed to create namespace %s: %w", namespace, err)
+			return errors.New(fmt.Sprintf("failed to create namespace %s: %s", namespace, err))
 		}
 		return nil
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to get namespace %s: %w", namespace, err)
+		return errors.New(fmt.Sprintf("failed to get namespace %s: %s", namespace, err))
 	}
 
 	return nil

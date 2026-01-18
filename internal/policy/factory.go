@@ -1,20 +1,27 @@
 package policy
 
 import (
+	"errors"
 	"fmt"
 
-	eirenyxv1alpha1 "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
+	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	"github.com/EirenyxK8s/eirenyx/internal/policy/falco"
+	"github.com/EirenyxK8s/eirenyx/internal/policy/trivy"
 )
 
-func NewEngine(policy *eirenyxv1alpha1.Policy, deps Dependencies) (Engine, error) {
+func NewEngine(policy *eirenyx.Policy, deps Dependencies) (Engine, error) {
 	switch policy.Spec.Base.Type {
-	case eirenyxv1alpha1.PolicyTypeFalco:
+	case eirenyx.PolicyTypeFalco:
 		return &falco.Engine{
 			Client: deps.Client,
 			Scheme: deps.Scheme,
 		}, nil
+	case eirenyx.PolicyTypeTrivy:
+		return &trivy.Engine{
+			Client: deps.Client,
+			Scheme: deps.Scheme,
+		}, nil
 	default:
-		return nil, fmt.Errorf("unsupported policy type: %s", policy.Spec.Base.Type)
+		return nil, errors.New(fmt.Sprintf("unsupported policy type: %s", policy.Spec.Base.Type))
 	}
 }

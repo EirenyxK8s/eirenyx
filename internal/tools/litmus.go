@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
@@ -48,7 +49,7 @@ func (l *LitmusService) EnsureInstalled(ctx context.Context, tool *eirenyx.Tool)
 	if len(rawValues) != 0 {
 		var values map[string]interface{}
 		if err := json.Unmarshal(rawValues, &values); err != nil {
-			return fmt.Errorf("failed to decode helm values: %w", err)
+			return errors.New(fmt.Sprintf("failed to decode helm values: %s", err))
 		}
 		manager.SetValues(values)
 	}
