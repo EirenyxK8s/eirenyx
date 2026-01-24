@@ -2,11 +2,11 @@ package k8s
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -61,6 +61,20 @@ func EnsureK8sNamespace(ctx context.Context, namespace string) error {
 
 	if err != nil {
 		return errors.New(fmt.Sprintf("failed to get namespace %s: %s", namespace, err))
+	}
+
+	return nil
+}
+
+// EnsureNamespaceDeleted deletes the specified namespace
+func EnsureNamespaceDeleted(ctx context.Context, ns string) error {
+	k8sClient, err := GetK8sClient()
+	if err != nil {
+		return err
+	}
+
+	if err = k8sClient.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{}); err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
 	}
 
 	return nil

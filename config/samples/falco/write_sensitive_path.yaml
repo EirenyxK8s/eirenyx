@@ -1,0 +1,26 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Policy
+metadata:
+  name: falco-write-sensitive-paths
+spec:
+  type: falco
+  enabled: true
+  target:
+    namespaceSelector:
+      - default
+  falco:
+    rules:
+      - name: Write to sensitive system paths
+        condition: >
+          open_write and
+          (fd.name startswith /etc or
+           fd.name startswith /usr/bin or
+           fd.name startswith /bin) and
+          container
+        output: >
+          File written in sensitive directory
+          (file=%fd.name container=%container.name user=%user.name)
+        priority: ERROR
+        tags:
+          - filesystem
+          - persistence

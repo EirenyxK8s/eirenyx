@@ -1,0 +1,21 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Policy
+metadata:
+  name: falco-privileged-container
+spec:
+  type: falco
+  enabled: true
+  target:
+    namespaceSelector:
+      - default
+  falco:
+    rules:
+      - name: Privileged container started
+        condition: container_started and container.privileged = true
+        output: >
+          Privileged container started
+          (container=%container.name image=%container.image.repository)
+        priority: CRITICAL
+        tags:
+          - kubernetes
+          - privilege-escalation
