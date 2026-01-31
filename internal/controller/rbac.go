@@ -21,7 +21,7 @@ package controller
 // Required for tool installation namespaces (e.g. trivy-system)
 // -----------------------------------------------------------------------------
 
-// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=*
 
 // -----------------------------------------------------------------------------
 // Core Kubernetes resources (used by Helm & engines)
@@ -62,7 +62,8 @@ package controller
 // CRDs (installed by tools like Trivy Operator / Litmus / Falco)
 // -----------------------------------------------------------------------------
 
-// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=*,verbs=*
+// +kubebuilder:rbac:groups=litmuschaos.io,resources=*,verbs=*
 
 // -----------------------------------------------------------------------------
 // Trivy Operator CRs

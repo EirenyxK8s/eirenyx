@@ -56,7 +56,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if controllerutil.ContainsFinalizer(&policy, eirenyx.PolicyFinalizer) {
 			if err := engine.Cleanup(ctx, &policy); err != nil {
 				log.Error(err, "Failed to cleanup policy")
-				return RequeueWithError(time.Second*5, err)
+				return Requeue(time.Second * 5)
 			}
 
 			controllerutil.RemoveFinalizer(&policy, eirenyx.PolicyFinalizer)
@@ -94,7 +94,8 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if !policy.Spec.Enabled {
 		if err := engine.Cleanup(ctx, &policy); err != nil {
-			return RequeueWithError(time.Second*5, err)
+			log.Error(err, "Failed to cleanup policy")
+			return Requeue(time.Second * 5)
 		}
 		return Complete()
 	}
@@ -104,7 +105,8 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	if err := engine.Reconcile(ctx, &policy); err != nil {
-		return RequeueWithError(time.Second*5, err)
+		log.Error(err, "Failed to reconcile policy")
+		return Requeue(time.Second * 5)
 	}
 
 	reportName, err := engine.GenerateReport(ctx, &policy)

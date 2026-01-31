@@ -40,7 +40,7 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		if ok {
 			if err := service.EnsureUninstalled(ctx, &tool); err != nil {
 				log.Error(err, "Failed to uninstall tool during deletion")
-				return RequeueWithError(time.Second*10, err)
+				return Requeue(time.Second * 10)
 			}
 		}
 
@@ -69,11 +69,13 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	if tool.Spec.Enabled {
 		if err := service.EnsureInstalled(ctx, &tool); err != nil {
-			return RequeueWithError(time.Second*5, err)
+			log.Error(err, "Failed to install tool")
+			return Requeue(time.Second * 5)
 		}
 	} else {
 		if err := service.EnsureUninstalled(ctx, &tool); err != nil {
-			return RequeueWithError(time.Second*5, err)
+			log.Error(err, "Failed to uninstall tool")
+			return Requeue(time.Second * 5)
 		}
 	}
 

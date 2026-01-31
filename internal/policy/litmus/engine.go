@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/EirenyxK8s/eirenyx/api/litmus"
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -57,51 +58,50 @@ func (e *Engine) Validate(policy *eirenyx.Policy) error {
 
 func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 	for _, exp := range policy.Spec.Litmus.Experiments {
-		targetNamespace := policy.Namespace
+
+		ns := policy.Namespace
 		if exp.TargetNamespace != "" {
-			targetNamespace = exp.TargetNamespace
+			ns = exp.TargetNamespace
 		}
 
-		engine := &ChaosEngine{
-			TypeMeta: ChaosEngineTypeMeta,
+		engine := &litmus.ChaosEngine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      getChaosEngineName(policy, exp.Name),
-				Namespace: targetNamespace,
-				Labels: map[string]string{
-					managedByLabelKey:     managedByLabelVal,
-					policyNameLabelKey:    policy.Name,
-					policyTypeLabelKey:    string(policy.Spec.Type),
-					litmusExperimentLabel: exp.Name,
-				},
+				Namespace: ns,
 			},
-			Spec: ChaosEngineSpec{
+		}
+
+		_, err := controllerutil.CreateOrUpdate(ctx, e.Client, engine, func() error {
+			engine.Labels = map[string]string{
+				managedByLabelKey:     managedByLabelVal,
+				policyNameLabelKey:    policy.Name,
+				policyTypeLabelKey:    string(policy.Spec.Type),
+				litmusExperimentLabel: exp.Name,
+			}
+
+			engine.Spec = litmus.ChaosEngineSpec{
 				EngineState: "active",
-				AppInfo: ChaosAppInfo{
-					AppNS:    exp.AppInfo.AppNamespace,
-					AppLabel: exp.AppInfo.AppLabel,
+				AppInfo: litmus.ApplicationParams{
+					Appns:    exp.AppInfo.AppNamespace,
+					Applabel: exp.AppInfo.AppLabel,
 					AppKind:  exp.AppInfo.AppKind,
 				},
-				Experiments: []ChaosExperiment{
+				Experiments: []litmus.ExperimentList{
 					{
 						Name: exp.ExperimentRef,
-						Spec: ChaosExperimentSpec{
-							Components: ChaosComponents{
-								Env: buildEnvVars(exp),
+						Spec: litmus.ExperimentAttributes{
+							Components: litmus.ExperimentComponents{
+								ENV: buildEnvVars(exp),
 							},
 						},
 					},
 				},
-			},
-		}
+			}
 
-		unstructuredChaosEngine, err := engine.ToUnstructured()
+			return controllerutil.SetControllerReference(policy, engine, e.Scheme)
+		})
+
 		if err != nil {
-			return err
-		}
-
-		_ = controllerutil.SetControllerReference(policy, unstructuredChaosEngine, e.Scheme)
-
-		if err := e.Client.Patch(ctx, unstructuredChaosEngine, client.Apply, client.ForceOwnership); err != nil {
 			return err
 		}
 	}
@@ -109,25 +109,25 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 	return nil
 }
 
-func buildEnvVars(exp eirenyx.LitmusExperiment) []ChaosEnvVar {
-	var envs []ChaosEnvVar
+func buildEnvVars(exp eirenyx.LitmusExperiment) []corev1.EnvVar {
+	var envs []corev1.EnvVar
 
 	if exp.Duration != "" {
-		envs = append(envs, ChaosEnvVar{
+		envs = append(envs, corev1.EnvVar{
 			Name:  "TOTAL_CHAOS_DURATION",
 			Value: exp.Duration,
 		})
 	}
 
 	if exp.Mode != "" {
-		envs = append(envs, ChaosEnvVar{
+		envs = append(envs, corev1.EnvVar{
 			Name:  "CHAOS_MODE",
 			Value: exp.Mode,
 		})
 	}
 
 	for k, v := range exp.Parameters {
-		envs = append(envs, ChaosEnvVar{
+		envs = append(envs, corev1.EnvVar{
 			Name:  k,
 			Value: v,
 		})
@@ -139,10 +139,17 @@ func buildEnvVars(exp eirenyx.LitmusExperiment) []ChaosEnvVar {
 func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
 	for _, exp := range policy.Spec.Litmus.Experiments {
 
-		engine := &unstructured.Unstructured{}
-		engine.SetGroupVersionKind(ChaosEngineGVK)
-		engine.SetName(getChaosEngineName(policy, exp.Name))
-		engine.SetNamespace(policy.Namespace)
+		ns := policy.Namespace
+		if exp.TargetNamespace != "" {
+			ns = exp.TargetNamespace
+		}
+
+		engine := &litmus.ChaosEngine{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getChaosEngineName(policy, exp.Name),
+				Namespace: ns,
+			},
+		}
 
 		if err := e.Client.Delete(ctx, engine); client.IgnoreNotFound(err) != nil {
 			return err
@@ -157,10 +164,5 @@ func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (st
 }
 
 func getChaosEngineName(policy *eirenyx.Policy, experimentName string) string {
-	return fmt.Sprintf(
-		"eirenyx-litmus-%s-%s-%d",
-		policy.Name,
-		experimentName,
-		policy.Generation,
-	)
+	return fmt.Sprintf("eirenyx-litmus-%s-%s", policy.Name, experimentName)
 }
