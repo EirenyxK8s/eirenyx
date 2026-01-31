@@ -7,6 +7,7 @@ import (
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,8 +28,8 @@ type Engine struct {
 }
 
 func (e *Engine) Validate(policy *eirenyx.Policy) error {
-	if policy.Spec.Base.Type != eirenyx.PolicyTypeTrivy {
-		return fmt.Errorf("trivy engine received unsupported policy type: %s", policy.Spec.Base.Type)
+	if policy.Spec.Type != eirenyx.PolicyTypeTrivy {
+		return fmt.Errorf("trivy engine received unsupported policy type: %s", policy.Spec.Type)
 	}
 
 	if policy.Spec.Trivy == nil {
@@ -53,53 +54,62 @@ func (e *Engine) Validate(policy *eirenyx.Policy) error {
 
 func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 	for _, scan := range policy.Spec.Trivy.Scans {
+		existing := &batchv1.Job{}
+		err := e.Client.Get(ctx, client.ObjectKey{
+			Name:      getScanJobName(policy, scan.Name),
+			Namespace: policy.Namespace,
+		}, existing)
 
-		job := batchv1.Job{
+		// If the Job already exists, no need to create it again
+		if err == nil {
+			return nil
+		}
+
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		backoffLimit := int32(0)
+		ttl := int32(300)
+
+		job := &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      getScanJobName(policy, scan.Name),
 				Namespace: policy.Namespace,
+				Labels: map[string]string{
+					managedByLabelKey:     managedByLabelVal,
+					policyNameLabelKey:    policy.Name,
+					policyTypeLabelKey:    string(policy.Spec.Type),
+					trivyScanNameLabelKey: scan.Name,
+				},
 			},
-		}
-
-		_, err := controllerutil.CreateOrUpdate(ctx, e.Client, &job, func() error {
-			if job.Labels == nil {
-				job.Labels = map[string]string{}
-			}
-
-			job.Labels[managedByLabelKey] = managedByLabelVal
-			job.Labels[policyNameLabelKey] = policy.Name
-			job.Labels[policyTypeLabelKey] = string(policy.Spec.Base.Type)
-			job.Labels[trivyScanNameLabelKey] = scan.Name
-
-			backoffLimit := int32(0)
-			ttl := int32(300)
-
-			job.Spec = batchv1.JobSpec{
+			Spec: batchv1.JobSpec{
 				BackoffLimit:            &backoffLimit,
 				TTLSecondsAfterFinished: &ttl,
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
-						Labels: job.Labels,
+						Labels: map[string]string{
+							trivyScanNameLabelKey: scan.Name,
+						},
 					},
 					Spec: corev1.PodSpec{
 						RestartPolicy: corev1.RestartPolicyNever,
 						Containers: []corev1.Container{
 							{
-								Name:            "image",
-								Image:           scan.Image,
-								ImagePullPolicy: corev1.PullAlways,
-								Command:         []string{"sh", "-c", "exit 0"},
+								Name:    "trivy",
+								Image:   "aquasec/trivy:latest",
+								Command: []string{"trivy", "image", scan.Image},
 							},
 						},
 					},
 				},
-			}
-			return controllerutil.SetControllerReference(policy, &job, e.Scheme)
-		})
+			},
+		}
 
-		if err != nil {
+		if err := controllerutil.SetControllerReference(policy, job, e.Scheme); err != nil {
 			return err
 		}
+		return e.Client.Create(ctx, job)
 	}
 
 	return nil
@@ -126,10 +136,5 @@ func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (st
 }
 
 func getScanJobName(policy *eirenyx.Policy, scanName string) string {
-	return fmt.Sprintf(
-		"eirenyx-trivy-%s-%s-%d",
-		policy.Name,
-		scanName,
-		policy.Generation,
-	)
+	return fmt.Sprintf("eirenyx-trivy-%s-%s", policy.Name, scanName)
 }

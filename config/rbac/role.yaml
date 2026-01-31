@@ -8,11 +8,19 @@ rules:
   - ""
   resources:
   - configmaps
+  - pods
   - secrets
   - serviceaccounts
   - services
   verbs:
   - '*'
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
 - apiGroups:
   - ""
   resources:
@@ -39,7 +47,6 @@ rules:
   resources:
   - daemonsets
   - deployments
-  - pods
   - replicasets
   - statefulsets
   verbs:
@@ -50,6 +57,24 @@ rules:
   - '*'
   verbs:
   - '*'
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs/status
+  verbs:
+  - get
 - apiGroups:
   - eirenyx.eirenyx
   resources:

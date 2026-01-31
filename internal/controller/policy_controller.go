@@ -2,9 +2,11 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	policyfactory "github.com/EirenyxK8s/eirenyx/internal/policy"
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,10 +22,6 @@ type PolicyReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=policies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=policies/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=policies/finalizers,verbs=update
-
 func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Starting Policy Reconciliation")
@@ -33,12 +31,15 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return CompleteWithError(client.IgnoreNotFound(err))
 	}
 
+	log.Info("Reconciling Policy With Spec: ", "policySpec", policy.Spec)
+
 	var tool eirenyx.Tool
 	if err := r.Get(ctx, client.ObjectKey{
-		Name:      string(policy.Spec.Base.Type),
+		Name:      string(policy.Spec.Type),
 		Namespace: policy.Namespace,
 	}, &tool); err != nil {
-		return CompleteWithError(err)
+		message := fmt.Sprintf("failed to get tool %q form namespace %q.", policy.Spec.Type, policy.Namespace)
+		return CompleteWithError(errors.Wrap(err, message))
 	}
 
 	engine, err := policyfactory.NewEngine(&policy, policyfactory.Dependencies{
@@ -91,7 +92,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return Complete()
 	}
 
-	if !policy.Spec.Base.Enabled {
+	if !policy.Spec.Enabled {
 		if err := engine.Cleanup(ctx, &policy); err != nil {
 			return RequeueWithError(time.Second*5, err)
 		}
@@ -108,8 +109,8 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	reportName, err := engine.GenerateReport(ctx, &policy)
 	if err == nil {
-		policy.Status.Base.LastReport = reportName
-		policy.Status.Base.ObservedGen = policy.Generation
+		policy.Status.LastReport = reportName
+		policy.Status.ObservedGen = policy.Generation
 
 		if err := r.Status().Update(ctx, &policy); err != nil {
 			return CompleteWithError(err)

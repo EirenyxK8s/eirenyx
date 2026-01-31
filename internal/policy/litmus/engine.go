@@ -26,8 +26,8 @@ type Engine struct {
 }
 
 func (e *Engine) Validate(policy *eirenyx.Policy) error {
-	if policy.Spec.Base.Type != eirenyx.PolicyTypeLitmus {
-		return fmt.Errorf("litmus engine received unsupported policy type: %s", policy.Spec.Base.Type)
+	if policy.Spec.Type != eirenyx.PolicyTypeLitmus {
+		return fmt.Errorf("litmus engine received unsupported policy type: %s", policy.Spec.Type)
 	}
 
 	if policy.Spec.Litmus == nil {
@@ -70,7 +70,7 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 				Labels: map[string]string{
 					managedByLabelKey:     managedByLabelVal,
 					policyNameLabelKey:    policy.Name,
-					policyTypeLabelKey:    string(policy.Spec.Base.Type),
+					policyTypeLabelKey:    string(policy.Spec.Type),
 					litmusExperimentLabel: exp.Name,
 				},
 			},

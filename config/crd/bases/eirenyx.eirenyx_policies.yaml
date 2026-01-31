@@ -68,6 +68,56 @@ spec:
                 required:
                 - rules
                 type: object
+              litmus:
+                properties:
+                  experiments:
+                    items:
+                      properties:
+                        appInfo:
+                          properties:
+                            appKind:
+                              type: string
+                            appLabel:
+                              type: string
+                            appNamespace:
+                              type: string
+                          required:
+                          - appKind
+                          - appLabel
+                          - appNamespace
+                          type: object
+                        duration:
+                          type: string
+                        engineRef:
+                          type: string
+                        expectedResult:
+                          properties:
+                            failOnChaosError:
+                              type: boolean
+                            verdict:
+                              type: string
+                          type: object
+                        experimentRef:
+                          type: string
+                        mode:
+                          type: string
+                        name:
+                          type: string
+                        parameters:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        targetNamespace:
+                          type: string
+                      required:
+                      - appInfo
+                      - experimentRef
+                      - name
+                      type: object
+                    type: array
+                required:
+                - experiments
+                type: object
               target:
                 properties:
                   namespaceSelector:
@@ -78,6 +128,34 @@ spec:
                     items:
                       type: string
                     type: array
+                type: object
+              trivy:
+                properties:
+                  scans:
+                    items:
+                      properties:
+                        exitCode:
+                          format: int32
+                          type: integer
+                        ignoreUnfixed:
+                          type: boolean
+                        image:
+                          type: string
+                        name:
+                          type: string
+                        severity:
+                          type: string
+                        vulnerabilityTypes:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - image
+                      - name
+                      type: object
+                    type: array
+                required:
+                - scans
                 type: object
               type:
                 type: string

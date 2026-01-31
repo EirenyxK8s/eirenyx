@@ -6,7 +6,9 @@ const PolicyFinalizer = "eirenyx.policy/finalizer"
 
 // PolicySpec defines the desired state of Policy
 type PolicySpec struct {
-	Base BasePolicySpec `json:",inline"`
+	Type    PolicyType   `json:"type"`
+	Enabled bool         `json:"enabled"`
+	Target  PolicyTarget `json:"target,omitempty"`
 
 	Falco  *FalcoPolicySpec  `json:"falco,omitempty"`
 	Trivy  *TrivyPolicySpec  `json:"trivy,omitempty"`
@@ -15,7 +17,14 @@ type PolicySpec struct {
 
 // PolicyStatus defines the observed state of the Policy.
 type PolicyStatus struct {
-	Base BasePolicyStatus `json:",inline"`
+	Phase string `json:"phase,omitempty"`
+	// The status of each condition is one of True, False, or Unknown.
+	// +listType=map
+	// +listMapKey=type
+	// +optional
+	Conditions  []metav1.Condition `json:"conditions,omitempty"`
+	LastReport  string             `json:"lastReport,omitempty"`
+	ObservedGen int64              `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

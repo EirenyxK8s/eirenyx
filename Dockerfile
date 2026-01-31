@@ -1,9 +1,12 @@
-# Build the manager binary
-FROM golang:1.24 AS builder
+FROM golang:1.25 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
+
+ENV GOMODCACHE=/go/pkg/mod
+ENV GOCACHE=/tmp/go-build
+
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum

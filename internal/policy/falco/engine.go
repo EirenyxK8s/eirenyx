@@ -30,8 +30,8 @@ type Engine struct {
 }
 
 func (e *Engine) Validate(policy *eirenyx.Policy) error {
-	if policy.Spec.Base.Type != eirenyx.PolicyTypeFalco {
-		return fmt.Errorf("falco engine received unsupported policy type: %s", policy.Spec.Base.Type)
+	if policy.Spec.Type != eirenyx.PolicyTypeFalco {
+		return fmt.Errorf("falco engine received unsupported policy type: %s", policy.Spec.Type)
 	}
 	if policy.Spec.Falco == nil {
 		return fmt.Errorf("spec.falco is required for type=falco")
@@ -72,7 +72,7 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 		}
 		configMap.Labels[managedByLabelKey] = managedByLabelVal
 		configMap.Labels[policyNameLabelKey] = policy.Name
-		configMap.Labels[policyTypeLabelKey] = string(policy.Spec.Base.Type)
+		configMap.Labels[policyTypeLabelKey] = string(policy.Spec.Type)
 
 		if configMap.Data == nil {
 			configMap.Data = map[string]string{}
@@ -112,7 +112,7 @@ func renderFalcoRules(policy *eirenyx.Policy) string {
 	sort.Slice(rules, func(i, j int) bool { return rules[i].Name < rules[j].Name })
 
 	for _, rule := range rules {
-		selectors := injectTargetSelectors(rule.Condition, policy.Spec.Base.Target)
+		selectors := injectTargetSelectors(rule.Condition, policy.Spec.Target)
 
 		builder.WriteString(fmt.Sprintf("- rule: %q\n", rule.Name))
 		builder.WriteString(fmt.Sprintf("  desc: %q\n", fmt.Sprintf("Managed by Eirenyx policy %s", policy.Name)))
