@@ -8,7 +8,9 @@ const PolicyFinalizer = "eirenyx.policy/finalizer"
 type PolicySpec struct {
 	Base BasePolicySpec `json:",inline"`
 
-	Falco *FalcoPolicySpec `json:"falco,omitempty"`
+	Falco  *FalcoPolicySpec  `json:"falco,omitempty"`
+	Trivy  *TrivyPolicySpec  `json:"trivy,omitempty"`
+	Litmus *LitmusPolicySpec `json:"litmus,omitempty"`
 }
 
 // PolicyStatus defines the observed state of the Policy.

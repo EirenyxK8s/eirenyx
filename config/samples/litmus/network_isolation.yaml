@@ -1,0 +1,24 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Policy
+metadata:
+  name: network-isolation-backend
+spec:
+  type: litmus
+  enabled: true
+  litmus:
+    experiments:
+      - name: backend-network-loss
+        experimentRef: pod-network-loss
+        targetNamespace: default
+        appInfo:
+          appNamespace: default
+          appLabel: app=backend
+          appKind: deployment
+        mode: one
+        duration: 60s
+        parameters:
+          NETWORK_INTERFACE: eth0
+          TOTAL_CHAOS_DURATION: "60"
+          TARGET_CONTAINER: backend
+        expectedResult:
+          verdict: Pass
