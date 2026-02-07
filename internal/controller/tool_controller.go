@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -64,7 +63,7 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	service, ok := r.Service[tool.Spec.Type]
 	if !ok {
-		return CompleteWithError(errors.New(fmt.Sprintf("Tool type %q not found", tool.Spec.Type)))
+		return CompleteWithError(fmt.Errorf("tool type %q not found", tool.Spec.Type))
 	}
 
 	if tool.Spec.Enabled {

@@ -109,7 +109,10 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 		if err := controllerutil.SetControllerReference(policy, job, e.Scheme); err != nil {
 			return err
 		}
-		return e.Client.Create(ctx, job)
+
+		if err := e.Client.Create(ctx, job); err != nil {
+			return err
+		}
 	}
 
 	return nil

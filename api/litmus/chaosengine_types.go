@@ -89,8 +89,8 @@ type ExperimentStatuses struct {
 
 // +genclient
 // +resource:path=chaosengine
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // ChaosEngine is the Schema for the chaosengines API
 type ChaosEngine struct {
@@ -101,7 +101,7 @@ type ChaosEngine struct {
 	Status ChaosEngineStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ChaosEngineList contains a list of ChaosEngine
 type ChaosEngineList struct {

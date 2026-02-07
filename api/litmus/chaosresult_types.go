@@ -110,8 +110,8 @@ type TestStatus struct {
 	ProbeSuccessPercentage string `json:"probeSuccessPercentage,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +genclient
 // +resource:path=chaosresult
 
@@ -124,7 +124,7 @@ type ChaosResult struct {
 	Status ChaosResultStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // ChaosResultList contains a list of ChaosResult
 type ChaosResultList struct {

@@ -98,7 +98,7 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 				},
 			}
 
-			return controllerutil.SetControllerReference(policy, engine, e.Scheme)
+			return nil
 		})
 
 		if err != nil {
@@ -110,7 +110,7 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 }
 
 func buildEnvVars(exp eirenyx.LitmusExperiment) []corev1.EnvVar {
-	var envs []corev1.EnvVar
+	envs := make([]corev1.EnvVar, 0)
 
 	if exp.Duration != "" {
 		envs = append(envs, corev1.EnvVar{
@@ -137,22 +137,32 @@ func buildEnvVars(exp eirenyx.LitmusExperiment) []corev1.EnvVar {
 }
 
 func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
+	namespaces := map[string]struct{}{
+		policy.Namespace: {},
+	}
+
 	for _, exp := range policy.Spec.Litmus.Experiments {
-
-		ns := policy.Namespace
 		if exp.TargetNamespace != "" {
-			ns = exp.TargetNamespace
+			namespaces[exp.TargetNamespace] = struct{}{}
+		}
+	}
+
+	for ns := range namespaces {
+		matchedLabels := client.MatchingLabels{
+			managedByLabelKey:  managedByLabelVal,
+			policyNameLabelKey: policy.Name,
 		}
 
-		engine := &litmus.ChaosEngine{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      getChaosEngineName(policy, exp.Name),
-				Namespace: ns,
-			},
-		}
+		var engineList litmus.ChaosEngineList
 
-		if err := e.Client.Delete(ctx, engine); client.IgnoreNotFound(err) != nil {
+		if err := e.Client.List(ctx, &engineList, client.InNamespace(ns), matchedLabels); err != nil {
 			return err
+		}
+
+		for i := range engineList.Items {
+			if err := e.Client.Delete(ctx, &engineList.Items[i]); client.IgnoreNotFound(err) != nil {
+				return err
+			}
 		}
 	}
 

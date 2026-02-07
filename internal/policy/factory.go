@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"errors"
 	"fmt"
 
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
@@ -28,6 +27,6 @@ func NewEngine(policy *eirenyx.Policy, deps Dependencies) (Engine, error) {
 			Scheme: deps.Scheme,
 		}, nil
 	default:
-		return nil, errors.New(fmt.Sprintf("unsupported policy type: %s", policy.Spec.Type))
+		return nil, fmt.Errorf("unsupported policy type: %s", policy.Spec.Type)
 	}
 }

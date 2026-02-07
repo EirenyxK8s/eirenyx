@@ -19,8 +19,7 @@ func ToYamlBlock(block string, indent int) string {
 	trim := strings.TrimRight(block, "\n")
 	lines := strings.Split(trim, "\n")
 	prefix := strings.Repeat(" ", indent)
-	if len(lines) == 1 && !strings.Contains(lines[0], "\n") {
-	}
+
 	var builder strings.Builder
 	builder.WriteString("|\n")
 	for _, ln := range lines {
