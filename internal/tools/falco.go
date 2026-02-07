@@ -6,6 +6,7 @@ import (
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	"github.com/EirenyxK8s/eirenyx/internal/client/helm"
 	"github.com/EirenyxK8s/eirenyx/internal/client/k8s"
+	"github.com/pkg/errors"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -53,7 +54,14 @@ func (f *FalcoService) EnsureUninstalled(ctx context.Context, tool *eirenyx.Tool
 	}
 
 	manager := helm.NewHelmDeleteManager(ns, falcoReleaseName)
-	return manager.Uninstall()
+	if err := manager.Uninstall(); err != nil {
+		return errors.Wrap(err, "failed to uninstall Falco Operator via Helm")
+	}
+
+	if err := k8s.EnsureNamespaceDeleted(ctx, ns); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (f *FalcoService) CheckHealth(ctx context.Context, tool *eirenyx.Tool) bool {

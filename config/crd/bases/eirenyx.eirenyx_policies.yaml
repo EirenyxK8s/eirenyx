@@ -37,27 +37,138 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of Policy
+            description: PolicySpec defines the desired state of Policy
             properties:
-              foo:
-                description: foo is an example field of Policy. Edit policy_types.go
-                  to remove/update
+              enabled:
+                type: boolean
+              falco:
+                properties:
+                  rules:
+                    items:
+                      properties:
+                        condition:
+                          type: string
+                        name:
+                          type: string
+                        output:
+                          type: string
+                        priority:
+                          type: string
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - condition
+                      - name
+                      - output
+                      - priority
+                      type: object
+                    type: array
+                required:
+                - rules
+                type: object
+              litmus:
+                properties:
+                  experiments:
+                    items:
+                      properties:
+                        appInfo:
+                          properties:
+                            appKind:
+                              type: string
+                            appLabel:
+                              type: string
+                            appNamespace:
+                              type: string
+                          required:
+                          - appKind
+                          - appLabel
+                          - appNamespace
+                          type: object
+                        duration:
+                          type: string
+                        engineRef:
+                          type: string
+                        expectedResult:
+                          properties:
+                            failOnChaosError:
+                              type: boolean
+                            verdict:
+                              type: string
+                          type: object
+                        experimentRef:
+                          type: string
+                        mode:
+                          type: string
+                        name:
+                          type: string
+                        parameters:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        targetNamespace:
+                          type: string
+                      required:
+                      - appInfo
+                      - experimentRef
+                      - name
+                      type: object
+                    type: array
+                required:
+                - experiments
+                type: object
+              target:
+                properties:
+                  namespaceSelector:
+                    items:
+                      type: string
+                    type: array
+                  nodeSelector:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              trivy:
+                properties:
+                  scans:
+                    items:
+                      properties:
+                        exitCode:
+                          format: int32
+                          type: integer
+                        ignoreUnfixed:
+                          type: boolean
+                        image:
+                          type: string
+                        name:
+                          type: string
+                        severity:
+                          type: string
+                        vulnerabilityTypes:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - image
+                      - name
+                      type: object
+                    type: array
+                required:
+                - scans
+                type: object
+              type:
                 type: string
+            required:
+            - enabled
+            - type
             type: object
           status:
-            description: status defines the observed state of Policy
+            description: PolicyStatus defines the observed state of the Policy.
             properties:
               conditions:
-                description: |-
-                  conditions represent the current state of the Policy resource.
-                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
-
-                  Standard condition types include:
-                  - "Available": the resource is fully functional
-                  - "Progressing": the resource is being created or updated
-                  - "Degraded": the resource failed to reach or maintain its desired state
-
-                  The status of each condition is one of True, False, or Unknown.
+                description: The status of each condition is one of True, False, or
+                  Unknown.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -116,8 +227,16 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              lastReport:
+                type: string
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                type: string
             type: object
         required:
+        - metadata
         - spec
         type: object
     served: true

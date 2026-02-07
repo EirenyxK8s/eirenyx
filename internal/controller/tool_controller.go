@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/EirenyxK8s/eirenyx/internal/tools"
@@ -22,53 +23,13 @@ type ToolReconciler struct {
 	Service map[eirenyx.ToolType]tools.ToolService
 }
 
-// -----------------------------------------------------------------------------
-// Eirenyx CRDs
-// -----------------------------------------------------------------------------
-
-// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=tools,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=tools/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=tools/finalizers,verbs=update
-
-// -----------------------------------------------------------------------------
-// Namespaces (cluster-scoped)
-// -----------------------------------------------------------------------------
-
-// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create
-
-// -----------------------------------------------------------------------------
-// Core Kubernetes resources (used by installed tools)
-// -----------------------------------------------------------------------------
-
-// +kubebuilder:rbac:groups="",resources=serviceaccounts;configmaps;secrets;services,verbs=*
-// +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets;pods,verbs=*
-
-// -----------------------------------------------------------------------------
-// RBAC (created by Helm charts)
-// -----------------------------------------------------------------------------
-
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings;clusterroles;clusterrolebindings,verbs=*
-
-// -----------------------------------------------------------------------------
-// CRDs (installed by tools like Trivy Operator)
-// -----------------------------------------------------------------------------
-
-// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update;patch;delete
-
-// -----------------------------------------------------------------------------
-// Trivy Operator CRs (cluster-scoped & namespaced)
-// Required for Helm install, upgrade, and uninstall
-// -----------------------------------------------------------------------------
-
-// +kubebuilder:rbac:groups=aquasecurity.github.io,resources=*,verbs=*
-
 func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Starting Tool Reconciliation")
 
 	var tool eirenyx.Tool
 	if err := r.Get(ctx, req.NamespacedName, &tool); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return CompleteWithError(client.IgnoreNotFound(err))
 	}
 
 	if !tool.DeletionTimestamp.IsZero() {
@@ -78,23 +39,23 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		if ok {
 			if err := service.EnsureUninstalled(ctx, &tool); err != nil {
 				log.Error(err, "Failed to uninstall tool during deletion")
-				return ctrl.Result{RequeueAfter: time.Second * 10}, err
+				return Requeue(time.Second * 10)
 			}
 		}
 
 		controllerutil.RemoveFinalizer(&tool, eirenyx.ToolFinalizer)
 		if err := r.Update(ctx, &tool); err != nil {
-			return ctrl.Result{}, err
+			return CompleteWithError(err)
 		}
 
 		log.Info("Finalizer removed, deletion completed", "tool", tool.Name)
-		return ctrl.Result{}, nil
+		return Complete()
 	}
 
 	if !controllerutil.ContainsFinalizer(&tool, eirenyx.ToolFinalizer) {
 		controllerutil.AddFinalizer(&tool, eirenyx.ToolFinalizer)
 		if err := r.Update(ctx, &tool); err != nil {
-			return ctrl.Result{}, err
+			return CompleteWithError(err)
 		}
 	}
 
@@ -102,17 +63,18 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	service, ok := r.Service[tool.Spec.Type]
 	if !ok {
-		log.Error(nil, "Tool type not found", "tool", tool.Spec.Type)
-		return ctrl.Result{}, nil
+		return CompleteWithError(fmt.Errorf("tool type %q not found", tool.Spec.Type))
 	}
 
 	if tool.Spec.Enabled {
 		if err := service.EnsureInstalled(ctx, &tool); err != nil {
-			return ctrl.Result{RequeueAfter: time.Second}, err
+			log.Error(err, "Failed to install tool")
+			return Requeue(time.Second * 5)
 		}
 	} else {
 		if err := service.EnsureUninstalled(ctx, &tool); err != nil {
-			return ctrl.Result{RequeueAfter: time.Second}, err
+			log.Error(err, "Failed to uninstall tool")
+			return Requeue(time.Second * 5)
 		}
 	}
 
@@ -122,7 +84,7 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	_ = r.Status().Update(ctx, &tool)
 
 	log.Info("Finished Tool Reconciliation")
-	return ctrl.Result{}, nil
+	return Complete()
 }
 
 // SetupWithManager sets up the controller with the Manager.

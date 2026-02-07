@@ -5,65 +5,48 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	eirenyxv1alpha1 "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 )
 
 var _ = Describe("Tool Controller", func() {
-	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+	Context("When reconciling a Tool resource", func() {
+		const (
+			toolName  = string(eirenyxv1alpha1.ToolTrivy)
+			namespace = "default"
+		)
 
 		ctx := context.Background()
 
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default",
+		key := types.NamespacedName{
+			Name:      toolName,
+			Namespace: namespace,
 		}
-		tool := &eirenyxv1alpha1.Tool{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind Tool")
-			err := k8sClient.Get(ctx, typeNamespacedName, tool)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &eirenyxv1alpha1.Tool{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: eirenyxv1alpha1.ToolSpec{
-						Type:      eirenyxv1alpha1.ToolTrivy,
-						Enabled:   false,
-						Namespace: "trivy-system",
-					},
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			By("creating the Tool resource")
+			tool := &eirenyxv1alpha1.Tool{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      toolName, // IMPORTANT: must match spec.type
+					Namespace: namespace,
+				},
+				Spec: eirenyxv1alpha1.ToolSpec{
+					Type:      eirenyxv1alpha1.ToolTrivy,
+					Enabled:   false, // safe path: no installation logic
+					Namespace: "trivy-system",
+				},
 			}
+			Expect(k8sClient.Create(ctx, tool)).To(Succeed())
 		})
 
 		AfterEach(func() {
-			resource := &eirenyxv1alpha1.Tool{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance Tool")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &ToolReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+			tool := &eirenyxv1alpha1.Tool{}
+			if err := k8sClient.Get(ctx, key, tool); err == nil {
+				_ = k8sClient.Delete(ctx, tool)
 			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 })

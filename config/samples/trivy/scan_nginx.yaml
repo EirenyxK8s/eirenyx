@@ -1,0 +1,16 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Policy
+metadata:
+  name: scan-nginx
+spec:
+  type: trivy
+  enabled: true
+  trivy:
+    scans:
+      - name: nginx-latest
+        image: nginx:latest
+        severity: HIGH
+        ignoreUnfixed: true
+        vulnerabilityTypes:
+          - os
+          - library

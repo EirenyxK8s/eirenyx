@@ -21,9 +21,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/EirenyxK8s/eirenyx/internal/tools"
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
+	"github.com/EirenyxK8s/eirenyx/api/litmus"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +36,7 @@ import (
 
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	"github.com/EirenyxK8s/eirenyx/internal/controller"
+	"github.com/EirenyxK8s/eirenyx/internal/tools"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -50,6 +49,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(eirenyx.AddToScheme(scheme))
+	utilruntime.Must(litmus.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

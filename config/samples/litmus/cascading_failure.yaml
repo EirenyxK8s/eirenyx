@@ -1,0 +1,38 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Policy
+metadata:
+  name: cascading-failure-payment
+spec:
+  type: litmus
+  enabled: true
+  litmus:
+    experiments:
+      - name: payment-cpu-hog
+        experimentRef: pod-cpu-hog
+        targetNamespace: payments
+        appInfo:
+          appNamespace: payments
+          appLabel: app=payment-service
+          appKind: deployment
+        mode: fixed
+        duration: 120s
+        parameters:
+          CPU_CORES: "2"
+          TOTAL_CHAOS_DURATION: "120"
+        expectedResult:
+          verdict: Pass
+
+      - name: payment-random-pod-delete
+        experimentRef: pod-delete
+        targetNamespace: payments
+        appInfo:
+          appNamespace: payments
+          appLabel: app=payment-service
+          appKind: deployment
+        mode: random
+        duration: 120s
+        parameters:
+          CHAOS_INTERVAL: "30"
+          TOTAL_CHAOS_DURATION: "120"
+        expectedResult:
+          verdict: Pass

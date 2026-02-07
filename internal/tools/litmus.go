@@ -7,6 +7,7 @@ import (
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	"github.com/EirenyxK8s/eirenyx/internal/client/helm"
 	"github.com/EirenyxK8s/eirenyx/internal/client/k8s"
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/json"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -48,7 +49,7 @@ func (l *LitmusService) EnsureInstalled(ctx context.Context, tool *eirenyx.Tool)
 	if len(rawValues) != 0 {
 		var values map[string]interface{}
 		if err := json.Unmarshal(rawValues, &values); err != nil {
-			return fmt.Errorf("failed to decode helm values: %w", err)
+			return errors.New(fmt.Sprintf("failed to decode helm values: %s", err))
 		}
 		manager.SetValues(values)
 	}
@@ -65,7 +66,14 @@ func (l *LitmusService) EnsureUninstalled(ctx context.Context, tool *eirenyx.Too
 	}
 
 	manager := helm.NewHelmDeleteManager(ns, litmusReleaseName)
-	return manager.Uninstall()
+	if err := manager.Uninstall(); err != nil {
+		return errors.Wrap(err, "failed to uninstall Trivy Operator via Helm")
+	}
+
+	if err := k8s.EnsureNamespaceDeleted(ctx, ns); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (l *LitmusService) CheckHealth(ctx context.Context, tool *eirenyx.Tool) bool {

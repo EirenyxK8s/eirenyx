@@ -1,0 +1,22 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Policy
+metadata:
+  name: pod-delete-nginx
+spec:
+  type: litmus
+  enabled: true
+  litmus:
+    experiments:
+      - name: delete-nginx-pod
+        experimentRef: pod-delete
+        targetNamespace: default
+        appInfo:
+          appNamespace: default
+          appLabel: app=nginx
+          appKind: deployment
+        mode: one
+        duration: 30s
+        parameters:
+          FORCE: "true"
+        expectedResult:
+          verdict: Pass

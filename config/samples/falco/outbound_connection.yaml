@@ -1,0 +1,18 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: Policy
+metadata:
+  name: falco-outbound-connection
+spec:
+  type: falco
+  enabled: true
+  falco:
+    rules:
+      - name: Outbound connection from container
+        condition: outbound and container
+        output: >
+          Outbound network connection from container
+          (container=%container.name dest=%fd.sip:%fd.sport)
+        priority: NOTICE
+        tags:
+          - network
+          - exfiltration
