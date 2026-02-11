@@ -9,18 +9,9 @@ spec:
     namespaceSelector:
       - default
   falco:
-    rules:
-      - name: Write to sensitive system paths
-        condition: >
-          open_write and
-          (fd.name startswith /etc or
-           fd.name startswith /usr/bin or
-           fd.name startswith /bin) and
-          container
-        output: >
-          File written in sensitive directory
-          (file=%fd.name container=%container.name user=%user.name)
-        priority: ERROR
-        tags:
-          - filesystem
-          - persistence
+    observe:
+      ruleRef:
+        name: "Write below etc"
+    report:
+      create: true
+      severity: medium

@@ -27,4 +27,13 @@ resources:
   kind: Tool
   path: github.com/EirenyxK8s/eirenyx/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: eirenyx
+  group: eirenyx
+  kind: PolicyReport
+  path: github.com/EirenyxK8s/eirenyx/api/v1alpha1
+  version: v1alpha1
 version: "3"

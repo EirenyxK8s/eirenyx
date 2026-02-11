@@ -21,8 +21,9 @@ import (
 	"flag"
 	"os"
 
-	"github.com/EirenyxK8s/eirenyx/api/litmus"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	"github.com/EirenyxK8s/eirenyx/api/litmus"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -34,7 +35,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
+	eirenyxv1alpha1 "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	"github.com/EirenyxK8s/eirenyx/internal/controller"
 	"github.com/EirenyxK8s/eirenyx/internal/tools"
 	// +kubebuilder:scaffold:imports
@@ -48,8 +49,8 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(eirenyx.AddToScheme(scheme))
 	utilruntime.Must(litmus.AddToScheme(scheme))
+	utilruntime.Must(eirenyxv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -191,13 +192,20 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		Service: map[eirenyx.ToolType]tools.ToolService{
-			eirenyx.ToolTrivy:  &tools.TrivyService{},
-			eirenyx.ToolFalco:  &tools.FalcoService{},
-			eirenyx.ToolLitmus: &tools.LitmusService{},
+		Service: map[eirenyxv1alpha1.ToolType]tools.ToolService{
+			eirenyxv1alpha1.ToolTrivy:  &tools.TrivyService{},
+			eirenyxv1alpha1.ToolFalco:  &tools.FalcoService{},
+			eirenyxv1alpha1.ToolLitmus: &tools.LitmusService{},
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Tool")
+		os.Exit(1)
+	}
+	if err := (&controller.PolicyReportReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PolicyReport")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

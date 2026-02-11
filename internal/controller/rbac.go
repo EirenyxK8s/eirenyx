@@ -17,6 +17,14 @@ package controller
 // +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=policies/finalizers,verbs=update
 
 // -----------------------------------------------------------------------------
+// Eirenyx Report CRDs
+// -----------------------------------------------------------------------------
+
+// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=policyreports,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=policyreports/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=eirenyx.eirenyx,resources=policyreports/finalizers,verbs=update
+
+// -----------------------------------------------------------------------------
 // Namespaces (cluster-scoped)
 // Required for tool installation namespaces (e.g. trivy-system)
 // -----------------------------------------------------------------------------

@@ -6,14 +6,9 @@ spec:
   type: falco
   enabled: true
   falco:
-    rules:
-      - name: Shell spawned in container
-        condition: spawned_process and container and proc.name in (bash, sh, zsh)
-        output: >
-          Shell spawned inside a container
-          (user=%user.name container=%container.name image=%container.image.repository)
-        priority: WARNING
-        tags:
-          - container
-          - shell
-          - intrusion
+    observe:
+      ruleRef:
+        name: "Terminal shell in container"
+    report:
+      create: true
+      severity: warning

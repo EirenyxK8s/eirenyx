@@ -1,0 +1,9 @@
+apiVersion: eirenyx.eirenyx/v1alpha1
+kind: PolicyReport
+metadata:
+  labels:
+    app.kubernetes.io/name: eirenyx
+    app.kubernetes.io/managed-by: kustomize
+  name: policyreport-sample
+spec:
+  # TODO(user): Add fields here
