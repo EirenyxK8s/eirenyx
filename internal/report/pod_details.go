@@ -62,7 +62,7 @@ func GetPodDetails(ctx context.Context, k8sClient client.Client, podCount int) r
 		}
 	}
 
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	rand.Shuffle(len(collectedPods), func(i, j int) {
 		collectedPods[i], collectedPods[j] = collectedPods[j], collectedPods[i]
 	})

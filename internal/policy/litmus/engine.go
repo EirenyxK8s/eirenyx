@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	logger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -57,6 +58,8 @@ func (e *Engine) Validate(policy *eirenyx.Policy) error {
 }
 
 func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
+	log := logger.FromContext(ctx)
+	log.Info("Reconciling Litmus policy", "policy", policy.Name)
 	for _, exp := range policy.Spec.Litmus.Experiments {
 
 		ns := policy.Namespace
@@ -154,13 +157,27 @@ func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
 		}
 
 		var engineList litmus.ChaosEngineList
-
 		if err := e.Client.List(ctx, &engineList, client.InNamespace(ns), matchedLabels); err != nil {
 			return err
 		}
 
 		for i := range engineList.Items {
 			if err := e.Client.Delete(ctx, &engineList.Items[i]); client.IgnoreNotFound(err) != nil {
+				return err
+			}
+		}
+	}
+
+	reportList := &eirenyx.PolicyReportList{}
+	if err := e.Client.List(ctx, reportList, client.InNamespace(policy.Namespace)); err != nil {
+		return err
+	}
+
+	for i := range reportList.Items {
+		report := &reportList.Items[i]
+
+		if report.Spec.PolicyRef.Name == policy.Name {
+			if err := e.Client.Delete(ctx, report); client.IgnoreNotFound(err) != nil {
 				return err
 			}
 		}
@@ -176,6 +193,10 @@ func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*e
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      reportName,
 			Namespace: policy.Namespace,
+			Labels: map[string]string{
+				managedByLabelKey:  managedByLabelVal,
+				policyNameLabelKey: policy.Name,
+			},
 		},
 		Spec: eirenyx.PolicyReportSpec{
 			PolicyRef: eirenyx.PolicyReference{
@@ -188,9 +209,6 @@ func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*e
 			Phase: eirenyx.ReportPending,
 		},
 	}
-
-	// Optionally, add details or other information to the report (e.g., Summary, etc.)
-	// report.Status.Summary = ...
 
 	return report, nil
 }

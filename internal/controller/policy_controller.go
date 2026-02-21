@@ -107,6 +107,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		log.Error(err, "Failed to reconcile policy")
 		return Requeue(time.Second * 5)
 	}
+	log.Info("Policy reconciled successfully")
 
 	report, err := engine.GenerateReport(ctx, &policy)
 	if err == nil {
@@ -125,6 +126,8 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err := r.Status().Update(ctx, &policy); err != nil {
 			return CompleteWithError(err)
 		}
+	} else {
+		log.Error(err, "Failed to generate Policy Report")
 	}
 
 	log.Info("Finished Policy Reconciliation", "policy", policy.Name)

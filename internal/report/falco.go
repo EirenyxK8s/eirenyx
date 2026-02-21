@@ -79,6 +79,6 @@ func createReportDetails(rule string, podDetails runtime.RawExtension) runtime.R
 	return runtime.RawExtension{Raw: reportData}
 }
 func getReportEventOccurrence() int32 {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	return int32(rand.Intn(5))
 }

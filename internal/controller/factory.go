@@ -11,8 +11,8 @@ import (
 	"github.com/EirenyxK8s/eirenyx/internal/report"
 )
 
-func NewPolicyEngine(policy *eirenyx.Policy, deps Dependencies) (policy.Engine, error) {
-	switch policy.Spec.Type {
+func NewPolicyEngine(eirenyxPolicy *eirenyx.Policy, deps Dependencies) (policy.Engine, error) {
+	switch eirenyxPolicy.Spec.Type {
 	case eirenyx.PolicyTypeFalco:
 		return &falco.Engine{
 			Client: deps.Client,
@@ -29,7 +29,7 @@ func NewPolicyEngine(policy *eirenyx.Policy, deps Dependencies) (policy.Engine, 
 			Scheme: deps.Scheme,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unsupported policy type: %s", policy.Spec.Type)
+		return nil, fmt.Errorf("unsupported policy type: %s", eirenyxPolicy.Spec.Type)
 	}
 }
 
