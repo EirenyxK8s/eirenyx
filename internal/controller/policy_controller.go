@@ -110,6 +110,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	report, err := engine.GenerateReport(ctx, &policy)
 	if err == nil {
+		log.Info("Generated Policy Report", "policyReport", report.Name)
 		if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, report, func() error {
 			report.Spec.PolicyRef.Name = policy.Name
 			report.Status.Phase = eirenyx.ReportRunning

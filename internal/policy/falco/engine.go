@@ -112,10 +112,7 @@ func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
 }
 
 func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*eirenyx.PolicyReport, error) {
-	// Generate report content, here using policy.Name for naming purposes
 	reportName := fmt.Sprintf("falco-report-%s", policy.Name)
-
-	// Create the PolicyReport object
 	report := &eirenyx.PolicyReport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      reportName,
@@ -132,9 +129,6 @@ func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*e
 			Phase: eirenyx.ReportPending,
 		},
 	}
-
-	// Optionally, add details or other information to the report (e.g., Summary, etc.)
-	// report.Status.Summary = ...
 
 	return report, nil
 }

@@ -42,11 +42,12 @@ func (h *FalcoReportHandler) Reconcile(ctx context.Context, policyReport *eireny
 
 	reportDetails := createReportDetails(ruleRefName, podDetails)
 
-	policyReport.Status.Summary.TotalChecks += 1
-	policyReport.Status.Summary.Failed += int32(eventCount)
+	policyReport.Status.Summary.TotalChecks = 1
+	policyReport.Status.Summary.Failed = eventCount
 	policyReport.Status.Summary.Verdict = eirenyx.VerdictPass
 	policyReport.Status.Phase = eirenyx.ReportCompleted
 	policyReport.Status.Details = reportDetails
+	log.Info("Updated PolicyReport status with policy details", "policyReport", policyReport.Name, "details", reportDetails)
 
 	if err := h.Client.Status().Update(ctx, policyReport); err != nil {
 		log.Error(err, "Failed to update PolicyReport status", "policyReport", policyReport.Name)

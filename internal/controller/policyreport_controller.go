@@ -68,7 +68,6 @@ func (r *PolicyReportReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	log.Info("Finished PolicyReport Reconciliation", "policyReport", policyReport.Name)
-	time.Sleep(time.Minute * 5)
 	return Complete()
 }
 
