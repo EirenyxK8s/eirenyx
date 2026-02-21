@@ -169,8 +169,30 @@ func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
 	return nil
 }
 
-func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (string, error) {
-	return fmt.Sprintf("litmus-chaos-report-%s", policy.Name), nil
+func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*eirenyx.PolicyReport, error) {
+	reportName := fmt.Sprintf("litmus-report-%s", policy.Name)
+
+	report := &eirenyx.PolicyReport{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      reportName,
+			Namespace: policy.Namespace,
+		},
+		Spec: eirenyx.PolicyReportSpec{
+			PolicyRef: eirenyx.PolicyReference{
+				Name:       policy.Name,
+				Generation: policy.Generation,
+			},
+			Type: policy.Spec.Type,
+		},
+		Status: eirenyx.PolicyReportStatus{
+			Phase: eirenyx.ReportPending,
+		},
+	}
+
+	// Optionally, add details or other information to the report (e.g., Summary, etc.)
+	// report.Status.Summary = ...
+
+	return report, nil
 }
 
 func getChaosEngineName(policy *eirenyx.Policy, experimentName string) string {

@@ -6,6 +6,7 @@ import (
 
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -78,20 +79,64 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 
 func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
 	cm := &corev1.ConfigMap{}
-	key := types.NamespacedName{
+	cmKey := types.NamespacedName{
 		Name:      falcoPolicyConfigMapName(policy),
 		Namespace: policy.Namespace,
 	}
 
-	if err := e.Client.Get(ctx, key, cm); err != nil {
-		return client.IgnoreNotFound(err)
+	if err := e.Client.Get(ctx, cmKey, cm); err == nil {
+		if err := e.Client.Delete(ctx, cm); err != nil {
+			return err
+		}
 	}
 
-	return e.Client.Delete(ctx, cm)
+	reportList := &eirenyx.PolicyReportList{}
+	if err := e.Client.List(ctx, reportList, client.InNamespace(policy.Namespace)); err != nil {
+		return err
+	}
+
+	for i := range reportList.Items {
+		report := &reportList.Items[i]
+
+		if report.Spec.PolicyRef.Name == policy.Name {
+			if err := e.Client.Delete(ctx, report); err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
-func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (string, error) {
-	return fmt.Sprintf("falco-report-%s", policy.Name), nil
+func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*eirenyx.PolicyReport, error) {
+	// Generate report content, here using policy.Name for naming purposes
+	reportName := fmt.Sprintf("falco-report-%s", policy.Name)
+
+	// Create the PolicyReport object
+	report := &eirenyx.PolicyReport{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      reportName,
+			Namespace: policy.Namespace,
+		},
+		Spec: eirenyx.PolicyReportSpec{
+			PolicyRef: eirenyx.PolicyReference{
+				Name:       policy.Name,
+				Generation: policy.Generation,
+			},
+			Type: policy.Spec.Type,
+		},
+		Status: eirenyx.PolicyReportStatus{
+			Phase: eirenyx.ReportPending,
+		},
+	}
+
+	// Optionally, add details or other information to the report (e.g., Summary, etc.)
+	// report.Status.Summary = ...
+
+	return report, nil
 }
 
 func falcoPolicyConfigMapName(policy *eirenyx.Policy) string {

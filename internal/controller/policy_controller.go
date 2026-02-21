@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	policyfactory "github.com/EirenyxK8s/eirenyx/internal/policy"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,11 +37,11 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		Name:      string(policy.Spec.Type),
 		Namespace: policy.Namespace,
 	}, &tool); err != nil {
-		message := fmt.Sprintf("failed to get tool %q form namespace %q.", policy.Spec.Type, policy.Namespace)
+		message := fmt.Sprintf("failed to get tool %q from namespace %q.", policy.Spec.Type, policy.Namespace)
 		return CompleteWithError(errors.Wrap(err, message))
 	}
 
-	engine, err := policyfactory.NewEngine(&policy, policyfactory.Dependencies{
+	engine, err := NewPolicyEngine(&policy, Dependencies{
 		Client: r.Client,
 		Scheme: r.Scheme,
 	})
@@ -109,9 +108,17 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return Requeue(time.Second * 5)
 	}
 
-	reportName, err := engine.GenerateReport(ctx, &policy)
+	report, err := engine.GenerateReport(ctx, &policy)
 	if err == nil {
-		policy.Status.LastReport = reportName
+		if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, report, func() error {
+			report.Spec.PolicyRef.Name = policy.Name
+			report.Status.Phase = eirenyx.ReportRunning
+			return nil
+		}); err != nil {
+			return CompleteWithError(err)
+		}
+
+		policy.Status.LastReport = report.Name
 		policy.Status.ObservedGen = policy.Generation
 
 		if err := r.Status().Update(ctx, &policy); err != nil {

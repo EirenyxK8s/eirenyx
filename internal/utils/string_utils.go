@@ -29,3 +29,13 @@ func ToYamlBlock(block string, indent int) string {
 	}
 	return builder.String()
 }
+
+// Contains checks if a value exists in a slice of strings
+func Contains(slice []string, value string) bool {
+	for _, item := range slice {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
