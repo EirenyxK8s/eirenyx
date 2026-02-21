@@ -43,30 +43,40 @@ spec:
                 type: boolean
               falco:
                 properties:
-                  rules:
-                    items:
-                      properties:
-                        condition:
-                          type: string
-                        name:
-                          type: string
-                        output:
-                          type: string
-                        priority:
-                          type: string
-                        tags:
-                          items:
+                  observe:
+                    properties:
+                      ruleRef:
+                        properties:
+                          name:
                             type: string
-                          type: array
-                      required:
-                      - condition
-                      - name
-                      - output
-                      - priority
-                      type: object
-                    type: array
+                        required:
+                        - name
+                        type: object
+                      ruleSelector:
+                        properties:
+                          priorities:
+                            items:
+                              type: string
+                            type: array
+                          tags:
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                    type: object
+                  report:
+                    properties:
+                      aggregationWindow:
+                        type: string
+                      create:
+                        type: boolean
+                      severity:
+                        type: string
+                    required:
+                    - create
+                    type: object
                 required:
-                - rules
+                - observe
                 type: object
               litmus:
                 properties:

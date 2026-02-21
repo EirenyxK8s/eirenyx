@@ -9,13 +9,9 @@ spec:
     namespaceSelector:
       - default
   falco:
-    rules:
-      - name: Privileged container started
-        condition: container_started and container.privileged = true
-        output: >
-          Privileged container started
-          (container=%container.name image=%container.image.repository)
-        priority: CRITICAL
-        tags:
-          - kubernetes
-          - privilege-escalation
+    observe:
+      ruleRef:
+        name: "Privileged Container"
+    report:
+      create: true
+      severity: critical

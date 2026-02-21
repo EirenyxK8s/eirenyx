@@ -61,6 +61,7 @@ rules:
   - eirenyx.eirenyx
   resources:
   - policies
+  - policyreports
   - tools
   verbs:
   - create
@@ -74,6 +75,7 @@ rules:
   - eirenyx.eirenyx
   resources:
   - policies/finalizers
+  - policyreports/finalizers
   - tools/finalizers
   verbs:
   - update
@@ -81,6 +83,7 @@ rules:
   - eirenyx.eirenyx
   resources:
   - policies/status
+  - policyreports/status
   - tools/status
   verbs:
   - get

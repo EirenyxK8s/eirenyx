@@ -1,13 +1,31 @@
 package v1alpha1
 
+const (
+	FalcoRulesConfigMapName = "eirenyx-falco-rules"
+	FalcoRulesKey           = "eirenyx.yaml"
+)
+
 type FalcoPolicySpec struct {
-	Rules []FalcoRule `json:"rules"`
+	Observe FalcoObserveSpec `json:"observe"`
+	Report  *FalcoReportSpec `json:"report,omitempty"`
 }
 
-type FalcoRule struct {
-	Name      string   `json:"name"`
-	Condition string   `json:"condition"`
-	Output    string   `json:"output"`
-	Priority  string   `json:"priority"`
-	Tags      []string `json:"tags,omitempty"`
+type FalcoObserveSpec struct {
+	RuleRef      *FalcoRuleRef      `json:"ruleRef,omitempty"`
+	RuleSelector *FalcoRuleSelector `json:"ruleSelector,omitempty"`
+}
+
+type FalcoRuleRef struct {
+	Name string `json:"name"`
+}
+
+type FalcoRuleSelector struct {
+	Tags       []string `json:"tags,omitempty"`
+	Priorities []string `json:"priorities,omitempty"`
+}
+
+type FalcoReportSpec struct {
+	Create            bool   `json:"create"`
+	Severity          string `json:"severity,omitempty"`
+	AggregationWindow string `json:"aggregationWindow,omitempty"`
 }

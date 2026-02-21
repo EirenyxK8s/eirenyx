@@ -134,8 +134,32 @@ func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
 	return nil
 }
 
-func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (string, error) {
-	return "trivy-report-name", nil
+func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*eirenyx.PolicyReport, error) {
+	// Generate report content, here using policy.Name for naming purposes
+	reportName := fmt.Sprintf("falco-report-%s", policy.Name)
+
+	// Create the PolicyReport object
+	report := &eirenyx.PolicyReport{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      reportName,
+			Namespace: policy.Namespace,
+		},
+		Spec: eirenyx.PolicyReportSpec{
+			PolicyRef: eirenyx.PolicyReference{
+				Name:       policy.Name,
+				Generation: policy.Generation,
+			},
+			Type: policy.Spec.Type,
+		},
+		Status: eirenyx.PolicyReportStatus{
+			Phase: eirenyx.ReportPending,
+		},
+	}
+
+	// Optionally, add details or other information to the report (e.g., Summary, etc.)
+	// report.Status.Summary = ...
+
+	return report, nil
 }
 
 func getScanJobName(policy *eirenyx.Policy, scanName string) string {

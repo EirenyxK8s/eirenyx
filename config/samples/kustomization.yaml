@@ -3,4 +3,5 @@ resources:
   - tools/tool_litmus.yaml
   - tools/tool_trivy.yaml
   - eirenyx_v1alpha1_policy.yaml
+  - eirenyx_v1alpha1_policyreport.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

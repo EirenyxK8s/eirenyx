@@ -36,7 +36,7 @@ case "$cmd" in
     make build
     ;;
   image)
-    make docker-build IMG="$IMG"
+    make docker-buildx IMG="$IMG"
     ;;
   push)
     make docker-push IMG="$IMG"

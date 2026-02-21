@@ -122,6 +122,13 @@ func (i *Manager) Uninstall() error {
 	return err
 }
 
+func (i *Manager) MergeValues(user map[string]interface{}) {
+	if i.Values == nil {
+		i.Values = map[string]interface{}{}
+	}
+	i.Values = deepMerge(i.Values, user)
+}
+
 func (i *Manager) settings() (*helmcli.EnvSettings, error) {
 	settings := helmcli.New()
 	settings.SetNamespace(i.Namespace)
@@ -181,4 +188,22 @@ func (i *Manager) ensureRepo(settings *helmcli.EnvSettings) error {
 	repo.CachePath = settings.RepositoryCache
 	_, err = repo.DownloadIndexFile()
 	return err
+}
+
+func deepMerge(dst, src map[string]interface{}) map[string]interface{} {
+	for key, srcVal := range src {
+		if dstVal, exists := dst[key]; exists {
+			dstMap, dstIsMap := dstVal.(map[string]interface{})
+			srcMap, srcIsMap := srcVal.(map[string]interface{})
+
+			if dstIsMap && srcIsMap {
+				dst[key] = deepMerge(dstMap, srcMap)
+				continue
+			}
+			dst[key] = srcVal
+		} else {
+			dst[key] = srcVal
+		}
+	}
+	return dst
 }

@@ -4,6 +4,7 @@
 resources:
   - bases/eirenyx.eirenyx_policies.yaml
   - bases/eirenyx.eirenyx_tools.yaml
+  - bases/eirenyx.eirenyx_policyreports.yaml
   - bases/litmuschaos.io_chaosengines.yaml
   - bases/litmuschaos.io_chaosexperiments.yaml
   - bases/litmuschaos.io_chaosresults.yaml
