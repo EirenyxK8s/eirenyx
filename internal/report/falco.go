@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"math/rand"
 	_ "strings"
-	"time"
 
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	_ "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,12 +38,20 @@ func (h *FalcoReportHandler) Reconcile(ctx context.Context, policyReport *eireny
 
 	eventCount := getReportEventOccurrence()
 	podDetails := GetPodDetails(ctx, h.Client, int(eventCount))
-
 	reportDetails := createReportDetails(ruleRefName, podDetails)
+
+	log.Info("Falco event count", "count", eventCount)
 
 	policyReport.Status.Summary.TotalChecks = 1
 	policyReport.Status.Summary.Failed = eventCount
-	policyReport.Status.Summary.Verdict = eirenyx.VerdictPass
+	policyReport.Status.Summary.Passed = 1 - eventCount
+
+	if eventCount > 0 {
+		policyReport.Status.Summary.Verdict = eirenyx.VerdictFail
+	} else {
+		policyReport.Status.Summary.Verdict = eirenyx.VerdictPass
+	}
+
 	policyReport.Status.Phase = eirenyx.ReportCompleted
 	policyReport.Status.Details = reportDetails
 	log.Info("Updated PolicyReport status with policy details", "policyReport", policyReport.Name, "details", reportDetails)
@@ -78,7 +85,7 @@ func createReportDetails(rule string, podDetails runtime.RawExtension) runtime.R
 
 	return runtime.RawExtension{Raw: reportData}
 }
+
 func getReportEventOccurrence() int32 {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
 	return int32(rand.Intn(5))
 }
