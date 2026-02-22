@@ -21,6 +21,7 @@ import (
 	"flag"
 	"os"
 
+	aquav1 "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/EirenyxK8s/eirenyx/api/litmus"
@@ -51,6 +52,7 @@ func init() {
 
 	utilruntime.Must(litmus.AddToScheme(scheme))
 	utilruntime.Must(eirenyxv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(aquav1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

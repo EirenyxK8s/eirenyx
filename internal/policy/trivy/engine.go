@@ -135,10 +135,18 @@ func (e *Engine) Cleanup(ctx context.Context, policy *eirenyx.Policy) error {
 }
 
 func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*eirenyx.PolicyReport, error) {
-	// Generate report content, here using policy.Name for naming purposes
-	reportName := fmt.Sprintf("falco-report-%s", policy.Name)
+	reportName := fmt.Sprintf("trivy-report-%s", policy.Name)
 
-	// Create the PolicyReport object
+	existing := &eirenyx.PolicyReport{}
+	err := e.Client.Get(ctx, client.ObjectKey{
+		Name:      reportName,
+		Namespace: policy.Namespace,
+	}, existing)
+
+	if err == nil {
+		return existing, nil
+	}
+
 	report := &eirenyx.PolicyReport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      reportName,
@@ -156,8 +164,9 @@ func (e *Engine) GenerateReport(ctx context.Context, policy *eirenyx.Policy) (*e
 		},
 	}
 
-	// Optionally, add details or other information to the report (e.g., Summary, etc.)
-	// report.Status.Summary = ...
+	if err := controllerutil.SetControllerReference(policy, report, e.Scheme); err != nil {
+		return nil, err
+	}
 
 	return report, nil
 }
