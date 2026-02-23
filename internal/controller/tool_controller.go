@@ -82,6 +82,9 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	tool.Status.Installed = tool.Spec.Enabled
 	tool.Status.Healthy = healthy
 	_ = r.Status().Update(ctx, &tool)
+	if !healthy {
+		return Requeue(time.Second * 5)
+	}
 
 	log.Info("Finished Tool Reconciliation")
 	return Complete()

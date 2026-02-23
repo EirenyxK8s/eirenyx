@@ -72,5 +72,7 @@ func (f *FalcoService) CheckHealth(ctx context.Context, tool *eirenyx.Tool) bool
 		ns = falcoNamespace
 	}
 
-	return k8s.IsDaemonSetReady(ctx, ns, falcoDaemonSet)
+	healthy := k8s.IsDaemonSetReady(ctx, ns, falcoDaemonSet)
+	log.Info("Falco is healthy", "healthy", healthy)
+	return healthy
 }

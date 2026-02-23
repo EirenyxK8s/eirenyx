@@ -72,5 +72,7 @@ func (t *TrivyService) CheckHealth(ctx context.Context, tool *eirenyx.Tool) bool
 		ns = trivyNamespace
 	}
 
-	return k8s.EnsureDeploymentRun(ctx, ns, trivyReleaseName)
+	healthy := k8s.EnsureDeploymentRun(ctx, ns, trivyReleaseName)
+	log.Info("Trivy Operator is healthy", "healthy", healthy)
+	return healthy
 }

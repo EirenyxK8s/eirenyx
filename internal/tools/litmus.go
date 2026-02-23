@@ -108,5 +108,7 @@ func (l *LitmusService) CheckHealth(ctx context.Context, tool *eirenyx.Tool) boo
 		ns = litmusNamespace
 	}
 
-	return k8s.EnsureDeploymentRun(ctx, ns, litmusDeployName)
+	healthy := k8s.EnsureDeploymentRun(ctx, ns, litmusDeployName)
+	log.Info("Litmus ChaosCenter is healthy", "healthy", healthy)
+	return healthy
 }
