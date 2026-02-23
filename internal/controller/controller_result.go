@@ -7,13 +7,17 @@ import (
 )
 
 func Complete() (ctrl.Result, error) {
-	return ctrl.Result{Requeue: false}, nil
+	return ctrl.Result{}, nil
 }
 
 func CompleteWithError(err error) (ctrl.Result, error) {
-	return ctrl.Result{Requeue: false}, err
+	return ctrl.Result{}, err
 }
 
-func Requeue(duration time.Duration) (ctrl.Result, error) {
-	return ctrl.Result{Requeue: true, RequeueAfter: duration}, nil
+func RequeueAfter(d time.Duration) (ctrl.Result, error) {
+	return ctrl.Result{RequeueAfter: d}, nil
+}
+
+func RequeueWithError(err error, d time.Duration) (ctrl.Result, error) {
+	return ctrl.Result{RequeueAfter: d}, err
 }

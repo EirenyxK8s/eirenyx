@@ -3,121 +3,85 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"sync"
-	"time"
 
-	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	ctrl "sigs.k8s.io/controller-runtime"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"k8s.io/client-go/rest"
 )
 
-var (
-	kubeClient *kubernetes.Clientset
-	initOnce   sync.Once
-	initErr    error
-)
-
-// GetK8sClient returns a singleton Kubernetes clientset
-func GetK8sClient() (*kubernetes.Clientset, error) {
-	initOnce.Do(func() {
-		cfg := ctrl.GetConfigOrDie()
-		kubeClient, initErr = kubernetes.NewForConfig(cfg)
-		if initErr != nil {
-			initErr = errors.New(fmt.Sprintf("failed to create kube client: %s", initErr))
-		}
-	})
-
-	return kubeClient, initErr
+// Client wraps the Kubernetes clientset with domain-specific helpers.
+type Client struct {
+	k8s kubernetes.Interface
 }
 
-// EnsureK8sNamespace ensures that the specified namespace exists in the cluster
-func EnsureK8sNamespace(ctx context.Context, namespace string) error {
-	k8sClient, err := GetK8sClient()
-	if err != nil {
-		return err
-	}
+// NewClient constructs a Client from any kubernetes.Interface.
+func NewClient(k8s kubernetes.Interface) *Client {
+	return &Client{k8s: k8s}
+}
 
-	_, err = k8sClient.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
-	if apierrors.IsNotFound(err) {
-		_, err = k8sClient.CoreV1().Namespaces().Create(
-			ctx,
-			&corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: namespace,
-				},
-			},
-			metav1.CreateOptions{},
-		)
-		if err != nil {
-			return errors.New(fmt.Sprintf("failed to create namespace %s: %s", namespace, err))
-		}
+// NewClientFromConfig builds a real in-cluster or kubeconfig-based Client.
+func NewClientFromConfig(cfg *rest.Config) (*Client, error) {
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("creating kubernetes clientset: %w", err)
+	}
+	return NewClient(clientset), nil
+}
+
+// EnsureNamespace creates the namespace if it does not already exist.
+func (c *Client) EnsureNamespace(ctx context.Context, namespace string) error {
+	_, err := c.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err == nil {
 		return nil
 	}
-
-	if err != nil {
-		return errors.New(fmt.Sprintf("failed to get namespace %s: %s", namespace, err))
+	if !apierrors.IsNotFound(err) {
+		return fmt.Errorf("getting namespace %s: %w", namespace, err)
 	}
 
+	_, err = c.k8s.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: namespace},
+	}, metav1.CreateOptions{})
+
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return fmt.Errorf("creating namespace %s: %w", namespace, err)
+	}
 	return nil
 }
 
-// EnsureNamespaceDeleted deletes the specified namespace
-func EnsureNamespaceDeleted(ctx context.Context, ns string) error {
-	k8sClient, err := GetK8sClient()
-	if err != nil {
-		return err
+// DeleteNamespace deletes the namespace. Idempotent — not found is not an error.
+func (c *Client) DeleteNamespace(ctx context.Context, ns string) error {
+	err := c.k8s.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("deleting namespace %s: %w", ns, err)
 	}
-
-	if err = k8sClient.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{}); err != nil {
-		return errors.Wrap(err, "failed to delete namespace")
-	}
-
 	return nil
 }
 
-// GetDeployment retrieves a deployment by namespace and name
-func GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
-	k8sClient, err := GetK8sClient()
+// IsDeploymentReady reports whether the named deployment is fully available.
+func (c *Client) IsDeploymentReady(ctx context.Context, namespace, name string) (bool, error) {
+	deploy, err := c.k8s.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("getting deployment %s/%s: %w", namespace, name, err)
 	}
-
-	return k8sClient.AppsV1().
-		Deployments(namespace).
-		Get(ctx, name, metav1.GetOptions{})
+	return isDeploymentReady(deploy), nil
 }
 
-// EnsureDeploymentRun waits for the deployment to become ready
-func EnsureDeploymentRun(ctx context.Context, namespace string, deployName string) bool {
-	log := logf.FromContext(ctx)
-	k8sClient, err := GetK8sClient()
+// IsDaemonSetReady reports whether all desired pods of the named DaemonSet are ready.
+func (c *Client) IsDaemonSetReady(ctx context.Context, namespace, name string) (bool, error) {
+	ds, err := c.k8s.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		log.Error(err, "failed to get k8s client")
-		return false
-	}
-
-	for start := time.Now(); time.Since(start) < 3*time.Minute; {
-		deploy, err := k8sClient.AppsV1().
-			Deployments(namespace).
-			Get(ctx, deployName, metav1.GetOptions{})
-
-		if err != nil {
-			time.Sleep(5 * time.Second)
-			continue
+		if apierrors.IsNotFound(err) {
+			return false, nil
 		}
-
-		if isDeploymentReady(deploy) {
-			return true
-		}
-
-		time.Sleep(5 * time.Second)
+		return false, fmt.Errorf("getting daemonset %s/%s: %w", namespace, name, err)
 	}
-	return false
+	return isDaemonSetReady(ds), nil
 }
 
 func isDeploymentReady(d *appsv1.Deployment) bool {
@@ -125,36 +89,17 @@ func isDeploymentReady(d *appsv1.Deployment) bool {
 		return false
 	}
 	for _, cond := range d.Status.Conditions {
-		if cond.Type == appsv1.DeploymentAvailable &&
-			cond.Status == corev1.ConditionTrue {
+		if cond.Type == appsv1.DeploymentAvailable && cond.Status == corev1.ConditionTrue {
 			return true
 		}
 	}
 	return false
 }
 
-func IsDaemonSetReady(ctx context.Context, namespace, name string) bool {
-	log := logf.FromContext(ctx)
-	k8sClient, err := GetK8sClient()
-	if err != nil {
-		log.Error(err, "failed to get k8s client")
+func isDaemonSetReady(ds *appsv1.DaemonSet) bool {
+	if ds.Status.ObservedGeneration < ds.Generation {
 		return false
 	}
-
-	ds, err := k8sClient.AppsV1().
-		DaemonSets(namespace).
-		Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return false
-	}
-
-	if ds.Status.NumberReady == 0 {
-		return false
-	}
-
-	if ds.Status.NumberReady < ds.Status.DesiredNumberScheduled {
-		return false
-	}
-
-	return true
+	return ds.Status.NumberReady > 0 &&
+		ds.Status.NumberReady >= ds.Status.DesiredNumberScheduled
 }

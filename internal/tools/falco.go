@@ -2,21 +2,25 @@ package tools
 
 import (
 	"context"
+	"fmt"
 
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	"github.com/EirenyxK8s/eirenyx/internal/client/helm"
 	"github.com/EirenyxK8s/eirenyx/internal/client/k8s"
-	"github.com/pkg/errors"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
 	falcoNamespace   = "falco"
 	falcoReleaseName = "falco"
+	falcoRepoName    = "falcosecurity"
+	falcoRepoURL     = "https://falcosecurity.github.io/charts"
+	falcoChart       = "falcosecurity/falco"
 	falcoDaemonSet   = "falco"
 )
 
 type FalcoService struct {
+	K8sClient *k8s.Client
 }
 
 func (f *FalcoService) Name() string {
@@ -26,53 +30,53 @@ func (f *FalcoService) Name() string {
 func (f *FalcoService) EnsureInstalled(ctx context.Context, tool *eirenyx.Tool) error {
 	log := logf.FromContext(ctx)
 	log.Info("Installing or upgrading Falco")
-	ns := tool.Spec.Namespace
-	if ns == "" {
-		ns = falcoNamespace
+
+	ns := resolvedNamespace(tool.Spec.Namespace, falcoNamespace)
+
+	if err := f.K8sClient.EnsureNamespace(ctx, ns); err != nil {
+		return fmt.Errorf("ensuring falco namespace: %w", err)
 	}
 
-	if err := k8s.EnsureK8sNamespace(ctx, ns); err != nil {
-		return err
+	manager := helm.NewHelmAdminManager(ns, falcoRepoName, falcoRepoURL, falcoChart, falcoReleaseName)
+	if err := manager.InstallOrUpgrade(); err != nil {
+		return fmt.Errorf("installing falco: %w", err)
 	}
 
-	manager := helm.NewHelmAdminManager(
-		ns,
-		"falcosecurity",
-		"https://falcosecurity.github.io/charts",
-		"falcosecurity/falco",
-		falcoReleaseName,
-	)
-	return manager.InstallOrUpgrade()
+	return nil
 }
 
 func (f *FalcoService) EnsureUninstalled(ctx context.Context, tool *eirenyx.Tool) error {
 	log := logf.FromContext(ctx)
 	log.Info("Uninstalling Falco")
-	ns := tool.Spec.Namespace
-	if ns == "" {
-		ns = falcoNamespace
-	}
+
+	managedNamespace := tool.Spec.Namespace == ""
+	ns := resolvedNamespace(tool.Spec.Namespace, falcoNamespace)
 
 	manager := helm.NewHelmDeleteManager(ns, falcoReleaseName)
-	if err := manager.Uninstall(); err != nil {
-		return errors.Wrap(err, "failed to uninstall Falco Operator via Helm")
+	if err := manager.Uninstall(); err != nil && !helm.IsReleaseNotFound(err) {
+		return fmt.Errorf("uninstalling falco: %w", err)
 	}
 
-	if err := k8s.EnsureNamespaceDeleted(ctx, ns); err != nil {
-		return err
+	if managedNamespace {
+		if err := f.K8sClient.DeleteNamespace(ctx, ns); err != nil {
+			return fmt.Errorf("deleting falco namespace: %w", err)
+		}
 	}
+
 	return nil
 }
 
-func (f *FalcoService) CheckHealth(ctx context.Context, tool *eirenyx.Tool) bool {
+func (f *FalcoService) CheckHealth(ctx context.Context, tool *eirenyx.Tool) (bool, error) {
 	log := logf.FromContext(ctx)
 	log.Info("Checking Falco health")
-	ns := tool.Spec.Namespace
-	if ns == "" {
-		ns = falcoNamespace
+
+	ns := resolvedNamespace(tool.Spec.Namespace, falcoNamespace)
+
+	ready, err := f.K8sClient.IsDaemonSetReady(ctx, ns, falcoDaemonSet)
+	if err != nil {
+		return false, fmt.Errorf("checking falco daemonset health: %w", err)
 	}
 
-	healthy := k8s.IsDaemonSetReady(ctx, ns, falcoDaemonSet)
-	log.Info("Falco is healthy", "healthy", healthy)
-	return healthy
+	log.Info("Falco health check complete", "healthy", ready)
+	return ready, nil
 }

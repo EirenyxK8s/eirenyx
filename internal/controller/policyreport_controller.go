@@ -49,7 +49,7 @@ func (r *PolicyReportReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return CompleteWithError(deleteErr)
 			}
 			log.Info("Deleted PolicyReport due to missing Policy", "policyReport", policyReport.Name)
-			return Requeue(time.Minute * 5)
+			return RequeueAfter(time.Minute * 5)
 		}
 		return CompleteWithError(err)
 	}
@@ -64,7 +64,7 @@ func (r *PolicyReportReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := handler.Reconcile(ctx, &policyReport); err != nil {
 		log.Error(err, "Failed to reconcile policy report")
-		return Requeue(time.Second * 5) // Retry after 5 seconds if there's an error
+		return RequeueAfter(time.Second * 5) // Retry after 5 seconds if there's an error
 	}
 
 	log.Info("Finished PolicyReport Reconciliation", "policyReport", policyReport.Name)

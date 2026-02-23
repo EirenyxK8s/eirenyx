@@ -2,10 +2,11 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"github.com/EirenyxK8s/eirenyx/internal/tools"
+	"github.com/EirenyxK8s/eirenyx/internal/client/k8s"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,9 +19,8 @@ import (
 // ToolReconciler reconciles a Tool object
 type ToolReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-
-	Service map[eirenyx.ToolType]tools.ToolService
+	Scheme    *runtime.Scheme
+	K8sClient k8s.Client
 }
 
 func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -33,64 +33,110 @@ func (r *ToolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	if !tool.DeletionTimestamp.IsZero() {
-		log.Info("Tool is being deleted", "tool", tool.Name)
-
-		service, ok := r.Service[tool.Spec.Type]
-		if ok {
-			if err := service.EnsureUninstalled(ctx, &tool); err != nil {
-				log.Error(err, "Failed to uninstall tool during deletion")
-				return Requeue(time.Second * 10)
-			}
-		}
-
-		controllerutil.RemoveFinalizer(&tool, eirenyx.ToolFinalizer)
-		if err := r.Update(ctx, &tool); err != nil {
-			return CompleteWithError(err)
-		}
-
-		log.Info("Finalizer removed, deletion completed", "tool", tool.Name)
-		return Complete()
+		return r.handleDeletion(ctx, &tool)
 	}
 
 	if !controllerutil.ContainsFinalizer(&tool, eirenyx.ToolFinalizer) {
+		patch := client.MergeFrom(tool.DeepCopy())
 		controllerutil.AddFinalizer(&tool, eirenyx.ToolFinalizer)
-		if err := r.Update(ctx, &tool); err != nil {
+		if err := r.Patch(ctx, &tool, patch); err != nil {
 			return CompleteWithError(err)
 		}
 	}
 
-	log.Info("Reconciling Tool", "tool", tool.Spec.Type, "enabled", tool.Spec.Enabled)
-
-	service, ok := r.Service[tool.Spec.Type]
-	if !ok {
-		return CompleteWithError(fmt.Errorf("tool type %q not found", tool.Spec.Type))
+	svc, err := NewToolService(&tool, Dependencies{
+		Client:    r.Client,
+		Scheme:    r.Scheme,
+		K8sClient: &r.K8sClient,
+	})
+	if err != nil {
+		return r.setFailedCondition(ctx, &tool, "UnsupportedToolType", err.Error())
 	}
+
+	log.Info("Reconciling Tool", "service", svc.Name(), "enabled", tool.Spec.Enabled)
 
 	if tool.Spec.Enabled {
-		if err := service.EnsureInstalled(ctx, &tool); err != nil {
+		if err := svc.EnsureInstalled(ctx, &tool); err != nil {
 			log.Error(err, "Failed to install tool")
-			return Requeue(time.Second * 5)
+			return RequeueAfter(5 * time.Second)
 		}
 	} else {
-		if err := service.EnsureUninstalled(ctx, &tool); err != nil {
+		if err := svc.EnsureUninstalled(ctx, &tool); err != nil {
 			log.Error(err, "Failed to uninstall tool")
-			return Requeue(time.Second * 5)
+			return RequeueAfter(5 * time.Second)
 		}
 	}
 
-	healthy := service.CheckHealth(ctx, &tool)
-	tool.Status.Installed = tool.Spec.Enabled
-	tool.Status.Healthy = healthy
-	_ = r.Status().Update(ctx, &tool)
-	if !healthy {
-		return Requeue(time.Second * 5)
+	healthy, err := svc.CheckHealth(ctx, &tool)
+	if err != nil {
+		log.Error(err, "Health check failed")
+		return RequeueAfter(10 * time.Second)
 	}
 
-	log.Info("Finished Tool Reconciliation")
+	tool.Status.Installed = tool.Spec.Enabled
+	tool.Status.Healthy = healthy
+	if err := r.Status().Update(ctx, &tool); err != nil {
+		log.Error(err, "Failed to update tool status")
+		return RequeueAfter(5 * time.Second)
+	}
+
+	if !healthy {
+		log.Info("Tool not yet healthy, requeuing", "tool", tool.Name)
+		return RequeueAfter(5 * time.Second)
+	}
+
+	log.Info("Finished Tool Reconciliation", "tool", tool.Name)
 	return Complete()
 }
 
-// SetupWithManager sets up the controller with the Manager.
+func (r *ToolReconciler) handleDeletion(ctx context.Context, tool *eirenyx.Tool) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+	log.Info("Tool is being deleted", "tool", tool.Name)
+
+	svc, err := NewToolService(tool, Dependencies{
+		Client:    r.Client,
+		Scheme:    r.Scheme,
+		K8sClient: &r.K8sClient,
+	})
+	if err != nil {
+		log.Info("Unknown tool type during deletion, skipping uninstall", "type", tool.Spec.Type)
+	} else {
+		if err := svc.EnsureUninstalled(ctx, tool); err != nil {
+			log.Error(err, "Failed to uninstall tool during deletion")
+			return RequeueAfter(10 * time.Second)
+		}
+	}
+
+	patch := client.MergeFrom(tool.DeepCopy())
+	controllerutil.RemoveFinalizer(tool, eirenyx.ToolFinalizer)
+	if err := r.Patch(ctx, tool, patch); err != nil {
+		return CompleteWithError(err)
+	}
+
+	log.Info("Finalizer removed, deletion completed", "tool", tool.Name)
+	return Complete()
+}
+
+func (r *ToolReconciler) setFailedCondition(ctx context.Context, tool *eirenyx.Tool, reason, message string) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+	log.Error(nil, message, "tool", tool.Name)
+
+	meta.SetStatusCondition(&tool.Status.Conditions, metav1.Condition{
+		Type:               "Ready",
+		Status:             metav1.ConditionFalse,
+		Reason:             reason,
+		Message:            message,
+		LastTransitionTime: metav1.Now(),
+	})
+
+	if err := r.Status().Update(ctx, tool); err != nil {
+		log.Error(err, "Failed to update status condition")
+		return RequeueAfter(5 * time.Second)
+	}
+
+	return Complete()
+}
+
 func (r *ToolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&eirenyx.Tool{}).

@@ -21,6 +21,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/EirenyxK8s/eirenyx/internal/client/k8s"
 	aquav1 "github.com/aquasecurity/trivy-operator/pkg/apis/aquasecurity/v1alpha1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -38,7 +39,6 @@ import (
 
 	eirenyxv1alpha1 "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
 	"github.com/EirenyxK8s/eirenyx/internal/controller"
-	"github.com/EirenyxK8s/eirenyx/internal/tools"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -159,7 +159,9 @@ func main() {
 		metricsServerOptions.KeyName = metricsCertKey
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	cfg := ctrl.GetConfigOrDie()
+
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -183,6 +185,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	k8sClient, err := k8s.NewClientFromConfig(cfg)
+	if err != nil {
+		setupLog.Error(err, "unable to create kubernetes client")
+		os.Exit(1)
+	}
+
 	if err := (&controller.PolicyReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -191,14 +199,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err := (&controller.ToolReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-
-		Service: map[eirenyxv1alpha1.ToolType]tools.ToolService{
-			eirenyxv1alpha1.ToolTrivy:  &tools.TrivyService{},
-			eirenyxv1alpha1.ToolFalco:  &tools.FalcoService{},
-			eirenyxv1alpha1.ToolLitmus: &tools.LitmusService{},
-		},
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		K8sClient: *k8sClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Tool")
 		os.Exit(1)

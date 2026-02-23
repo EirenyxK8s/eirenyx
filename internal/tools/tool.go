@@ -13,5 +13,13 @@ type ToolService interface {
 
 	EnsureUninstalled(ctx context.Context, tool *eirenyx.Tool) error
 
-	CheckHealth(ctx context.Context, tool *eirenyx.Tool) bool
+	CheckHealth(ctx context.Context, tool *eirenyx.Tool) (bool, error)
+}
+
+// resolvedNamespace returns the override if set, otherwise the default.
+func resolvedNamespace(override, defaultNS string) string {
+	if override != "" {
+		return override
+	}
+	return defaultNS
 }

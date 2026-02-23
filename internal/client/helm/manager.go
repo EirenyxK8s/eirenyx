@@ -122,6 +122,13 @@ func (i *Manager) Uninstall() error {
 	return err
 }
 
+func IsReleaseNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "release: not found")
+}
+
 func (i *Manager) MergeValues(user map[string]interface{}) {
 	if i.Values == nil {
 		i.Values = map[string]interface{}{}
