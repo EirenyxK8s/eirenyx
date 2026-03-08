@@ -23,18 +23,19 @@ type TrivyReportHandler struct {
 }
 
 func (h *TrivyReportHandler) Reconcile(ctx context.Context, policyReport *eirenyx.PolicyReport) error {
-
 	var policy eirenyx.Policy
 	if err := h.Client.Get(ctx, client.ObjectKey{
 		Name:      policyReport.Spec.PolicyRef.Name,
 		Namespace: policyReport.Namespace,
-	}, &policy,
-	); err != nil {
+	}, &policy); err != nil {
 		return err
 	}
 
 	var vulnReports aquav1.VulnerabilityReportList
-	if err := h.Client.List(ctx, &vulnReports, client.InNamespace(policyReport.Namespace)); err != nil {
+	if err := h.Client.List(ctx, &vulnReports,
+		client.InNamespace(policyReport.Namespace),
+		client.MatchingLabels{"trivy-operator.resource.kind": "Job"},
+	); err != nil {
 		return err
 	}
 
@@ -42,41 +43,38 @@ func (h *TrivyReportHandler) Reconcile(ctx context.Context, policyReport *eireny
 	for _, scan := range policy.Spec.Trivy.Scans {
 		expectedJobName := fmt.Sprintf("eirenyx-trivy-%s-%s", policy.Name, scan.Name)
 		for _, vr := range vulnReports.Items {
-			if vr.Labels["trivy-operator.resource.kind"] == "Job" &&
-				vr.Labels["trivy-operator.resource.name"] == expectedJobName {
+			if vr.Labels["trivy-operator.resource.name"] == expectedJobName {
 				relevantReports = append(relevantReports, vr)
+				break
 			}
 		}
 	}
 
 	if len(relevantReports) == 0 {
 		policyReport.Status.Phase = eirenyx.ReportRunning
-		err := h.Client.Status().Update(ctx, policyReport)
-		if err == nil {
-			err = fmt.Errorf("report for policy %s is not complete, should reconcile", policyReport.Spec.PolicyRef.Name)
+		if err := h.Client.Status().Update(ctx, policyReport); err != nil {
+			return err
 		}
-		return err
+		return fmt.Errorf("report for policy %s is not complete, should reconcile", policyReport.Spec.PolicyRef.Name)
 	}
 
 	var total int32
 	var failed int32
 	var allVulns []aquav1.Vulnerability
+	var firstImage string
 
-	for _, vr := range relevantReports {
+	for i, vr := range relevantReports {
 		summary := vr.Report.Summary
-
-		total += int32(
-			summary.CriticalCount +
-				summary.HighCount +
-				summary.MediumCount +
-				summary.LowCount,
-		)
-
-		if summary.CriticalCount > 0 || summary.HighCount > 0 {
-			failed++
-		}
-
+		total += int32(summary.CriticalCount + summary.HighCount + summary.MediumCount + summary.LowCount)
+		failed += int32(summary.CriticalCount + summary.HighCount)
 		allVulns = append(allVulns, vr.Report.Vulnerabilities...)
+		if i == 0 {
+			if vr.Report.Artifact.Tag != "" {
+				firstImage = vr.Report.Artifact.Repository + ":" + vr.Report.Artifact.Tag
+			} else if vr.Report.Artifact.Repository != "" {
+				firstImage = vr.Report.Artifact.Repository
+			}
+		}
 	}
 
 	verdict := eirenyx.VerdictPass
@@ -84,15 +82,15 @@ func (h *TrivyReportHandler) Reconcile(ctx context.Context, policyReport *eireny
 		verdict = eirenyx.VerdictFail
 	}
 
-	details := trivyDetails{
+	detailsBytes, err := json.Marshal(trivyDetails{
+		Image:           firstImage,
 		Vulnerabilities: allVulns,
 		ReportCount:     len(relevantReports),
-	}
-
-	detailsBytes, err := json.Marshal(details)
+	})
 	if err != nil {
 		return err
 	}
+
 	policyReport.Status.Phase = eirenyx.ReportCompleted
 	policyReport.Status.Summary = eirenyx.ReportSummary{
 		Verdict:     verdict,
@@ -100,9 +98,7 @@ func (h *TrivyReportHandler) Reconcile(ctx context.Context, policyReport *eireny
 		Passed:      total - failed,
 		Failed:      failed,
 	}
-	policyReport.Status.Details = runtime.RawExtension{
-		Raw: detailsBytes,
-	}
+	policyReport.Status.Details = runtime.RawExtension{Raw: detailsBytes}
 
 	return h.Client.Status().Update(ctx, policyReport)
 }

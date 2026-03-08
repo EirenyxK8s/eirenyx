@@ -9,10 +9,13 @@ spec:
   type: litmus
   enabled: true
   namespace: litmus
-  values:
-    mongodb:
-      image:
-        registry: dlavrenuek
-        repository: bitnami-mongodb-arm
-        tag: "6.0.13"
+  values: {
+    "mongodb": {
+      "image": {
+        "registry": "dlavrenuek",
+        "repository": "bitnami-mongodb-arm",
+        "tag": "6.0.13"
+      }
+    }
+  }
         

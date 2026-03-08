@@ -20,6 +20,9 @@ const (
 	policyNameLabelKey    = "eirenyx.eirenyx/policy-name"
 	policyTypeLabelKey    = "eirenyx.eirenyx/policy-type"
 	trivyScanNameLabelKey = "eirenyx.eirenyx/trivy-scan-name"
+
+	trivyImage    = "aquasec/trivy:0.61.0"
+	jobTTLSeconds = int32(1800)
 )
 
 type Engine struct {
@@ -60,9 +63,8 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 			Namespace: policy.Namespace,
 		}, existing)
 
-		// If the Job already exists, no need to create it again
 		if err == nil {
-			return nil
+			continue
 		}
 
 		if !apierrors.IsNotFound(err) {
@@ -70,7 +72,22 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 		}
 
 		backoffLimit := int32(0)
-		ttl := int32(300)
+		ttl := jobTTLSeconds
+
+		args := []string{"image", "--format", "json", "--quiet"}
+		if scan.Severity != "" {
+			args = append(args, "--severity", scan.Severity)
+		}
+		if scan.IgnoreUnfixed {
+			args = append(args, "--ignore-unfixed")
+		}
+		for _, vt := range scan.VulnerabilityTypes {
+			args = append(args, "--vuln-type", vt)
+		}
+		if scan.ExitCode != nil {
+			args = append(args, "--exit-code", fmt.Sprintf("%d", *scan.ExitCode))
+		}
+		args = append(args, scan.Image)
 
 		job := &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
@@ -97,8 +114,9 @@ func (e *Engine) Reconcile(ctx context.Context, policy *eirenyx.Policy) error {
 						Containers: []corev1.Container{
 							{
 								Name:    "trivy",
-								Image:   "aquasec/trivy:latest",
-								Command: []string{"trivy", "image", scan.Image},
+								Image:   trivyImage,
+								Command: []string{"trivy"},
+								Args:    args,
 							},
 						},
 					},

@@ -110,24 +110,40 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	log.Info("Policy reconciled successfully")
 
 	report, err := engine.GenerateReport(ctx, &policy)
-	if err == nil {
-		log.Info("Generated Policy Report", "policyReport", report.Name)
-		if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, report, func() error {
-			report.Spec.PolicyRef.Name = policy.Name
-			report.Status.Phase = eirenyx.ReportRunning
-			return nil
-		}); err != nil {
-			return CompleteWithError(err)
-		}
-
-		policy.Status.LastReport = report.Name
-		policy.Status.ObservedGen = policy.Generation
-
-		if err := r.Status().Update(ctx, &policy); err != nil {
-			return CompleteWithError(err)
-		}
-	} else {
+	if err != nil {
 		log.Error(err, "Failed to generate Policy Report")
+		return CompleteWithError(err)
+	}
+
+	needsRescan := report.Spec.PolicyRef.Generation != policy.Generation
+
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, report, func() error {
+		report.Spec.PolicyRef.Name = policy.Name
+		report.Spec.PolicyRef.Generation = policy.Generation
+		report.Spec.Type = policy.Spec.Type
+		return nil
+	}); err != nil {
+		return CompleteWithError(err)
+	}
+
+	if needsRescan {
+		log.Info("Policy generation changed, resetting report to Pending for re-scan",
+			"policy", policy.Name,
+			"oldGeneration", report.Spec.PolicyRef.Generation,
+			"newGeneration", policy.Generation,
+		)
+		report.Status.Phase = eirenyx.ReportPending
+		report.Status.Summary = eirenyx.ReportSummary{}
+		report.Status.Details = runtime.RawExtension{}
+		if err := r.Status().Update(ctx, report); err != nil {
+			return CompleteWithError(err)
+		}
+	}
+
+	policy.Status.LastReport = report.Name
+	policy.Status.ObservedGen = policy.Generation
+	if err := r.Status().Update(ctx, &policy); err != nil {
+		return CompleteWithError(err)
 	}
 
 	log.Info("Finished Policy Reconciliation", "policy", policy.Name)

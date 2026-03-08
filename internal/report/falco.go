@@ -42,9 +42,9 @@ func (h *FalcoReportHandler) Reconcile(ctx context.Context, policyReport *eireny
 
 	log.Info("Falco event count", "count", eventCount)
 
-	policyReport.Status.Summary.TotalChecks = 1
+	policyReport.Status.Summary.TotalChecks = eventCount
 	policyReport.Status.Summary.Failed = eventCount
-	policyReport.Status.Summary.Passed = 1 - eventCount
+	policyReport.Status.Summary.Passed = 0
 
 	if eventCount > 0 {
 		policyReport.Status.Summary.Verdict = eirenyx.VerdictFail

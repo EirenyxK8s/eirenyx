@@ -33,7 +33,13 @@ func (r *PolicyReportReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return CompleteWithError(client.IgnoreNotFound(err))
 	}
 
-	log.Info("Policy Report Details: ", "policyReport", policyReport.Name)
+	if policyReport.Status.Phase == eirenyx.ReportCompleted {
+		log.Info("PolicyReport already completed, skipping", "policyReport", policyReport.Name)
+		return Complete()
+	}
+
+	log.Info("Reconciling PolicyReport", "policyReport", policyReport.Name, "phase", policyReport.Status.Phase)
+
 	var policy eirenyx.Policy
 	err = r.Get(ctx, client.ObjectKey{
 		Namespace: policyReport.Namespace,
@@ -42,14 +48,13 @@ func (r *PolicyReportReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Error(err, "Policy not found", "policyName", policyReport.Spec.PolicyRef.Name)
-
+			log.Error(err, "Policy not found, deleting orphaned report", "policyName", policyReport.Spec.PolicyRef.Name)
 			if deleteErr := r.Delete(ctx, &policyReport); deleteErr != nil {
-				log.Error(deleteErr, "Failed to delete PolicyReport", "policyReport", policyReport.Name)
+				log.Error(deleteErr, "Failed to delete orphaned PolicyReport", "policyReport", policyReport.Name)
 				return CompleteWithError(deleteErr)
 			}
-			log.Info("Deleted PolicyReport due to missing Policy", "policyReport", policyReport.Name)
-			return RequeueAfter(time.Minute * 5)
+			log.Info("Deleted orphaned PolicyReport", "policyReport", policyReport.Name)
+			return Complete()
 		}
 		return CompleteWithError(err)
 	}
@@ -63,8 +68,8 @@ func (r *PolicyReportReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if err := handler.Reconcile(ctx, &policyReport); err != nil {
-		log.Error(err, "Failed to reconcile policy report")
-		return RequeueAfter(time.Second * 5) // Retry after 5 seconds if there's an error
+		log.Error(err, "Failed to reconcile policy report, requeueing")
+		return RequeueAfter(time.Second * 5)
 	}
 
 	log.Info("Finished PolicyReport Reconciliation", "policyReport", policyReport.Name)
