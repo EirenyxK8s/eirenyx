@@ -207,8 +207,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err := (&controller.PolicyReportReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		K8sClient: k8sClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PolicyReport")
 		os.Exit(1)

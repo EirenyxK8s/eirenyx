@@ -51,6 +51,8 @@ spec:
               value: /tmp/helm/config
             - name: HELM_DATA_HOME
               value: /tmp/helm/data
+            - name: TMPDIR
+              value: /tmp
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
@@ -72,15 +74,18 @@ spec:
           resources:
             limits:
               cpu: 500m
-              memory: 128Mi
+              memory: 256Mi
+              ephemeral-storage: 1Gi
             requests:
               cpu: 10m
-              memory: 64Mi
+              memory: 128Mi
+              ephemeral-storage: 512Mi
           volumeMounts:
-            - name: helm-cache
-              mountPath: /tmp/helm
+            - name: tmp
+              mountPath: /tmp
       volumes:
-        - name: helm-cache
-          emptyDir: { }
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

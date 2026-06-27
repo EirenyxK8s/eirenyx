@@ -40,6 +40,9 @@ package controller
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=*
 // +kubebuilder:rbac:groups="",resources=services,verbs=*
 // +kubebuilder:rbac:groups="",resources=pods,verbs=*
+// pods/log is a subresource and needs its own rule; the trivy report handler
+// reads scan-pod stdout via apiserver streaming to extract scan results.
+// +kubebuilder:rbac:groups="",resources=pods/log,verbs=get;list;watch
 
 // -----------------------------------------------------------------------------
 // Apps resources (installed by tools)

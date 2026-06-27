@@ -11,12 +11,16 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	eirenyx "github.com/EirenyxK8s/eirenyx/api/v1alpha1"
+	"github.com/EirenyxK8s/eirenyx/internal/client/k8s"
 )
 
 // PolicyReportReconciler reconciles a PolicyReport object
 type PolicyReportReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	// K8sClient is required by report handlers that need to talk to the core
+	// Kubernetes API directly (e.g. Trivy reads pod logs to extract scan output).
+	K8sClient *k8s.Client
 }
 
 func (r *PolicyReportReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -60,8 +64,9 @@ func (r *PolicyReportReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	handler, err := NewReportEngine(&policyReport, Dependencies{
-		Client: r.Client,
-		Scheme: r.Scheme,
+		Client:    r.Client,
+		Scheme:    r.Scheme,
+		K8sClient: r.K8sClient,
 	})
 	if err != nil {
 		return CompleteWithError(err)

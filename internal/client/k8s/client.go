@@ -1,8 +1,10 @@
 package k8s
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -82,6 +84,38 @@ func (c *Client) IsDaemonSetReady(ctx context.Context, namespace, name string) (
 		return false, fmt.Errorf("getting daemonset %s/%s: %w", namespace, name, err)
 	}
 	return isDaemonSetReady(ds), nil
+}
+
+// ListPods returns the pods in `namespace` matching `selector`. Used by report
+// handlers to locate the Pod backing a Job.
+func (c *Client) ListPods(ctx context.Context, namespace string, selector map[string]string) ([]corev1.Pod, error) {
+	sel := metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: selector})
+	list, err := c.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: sel})
+	if err != nil {
+		return nil, fmt.Errorf("listing pods in %s with selector %q: %w", namespace, sel, err)
+	}
+	return list.Items, nil
+}
+
+// GetPodLogs streams the full stdout/stderr of `container` in pod
+// `namespace/name` from the apiserver. Returns "" when the pod has produced
+// no output yet. Callers should ensure the pod is past Running (Succeeded /
+// Failed) before relying on the result.
+func (c *Client) GetPodLogs(ctx context.Context, namespace, name, container string) (string, error) {
+	req := c.k8s.CoreV1().Pods(namespace).GetLogs(name, &corev1.PodLogOptions{
+		Container: container,
+	})
+	stream, err := req.Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("opening log stream for pod %s/%s container %q: %w", namespace, name, container, err)
+	}
+	defer stream.Close()
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, stream); err != nil {
+		return "", fmt.Errorf("reading log stream for pod %s/%s container %q: %w", namespace, name, container, err)
+	}
+	return buf.String(), nil
 }
 
 func isDeploymentReady(d *appsv1.Deployment) bool {

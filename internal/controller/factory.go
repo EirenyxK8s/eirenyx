@@ -76,8 +76,9 @@ func NewReportEngine(r *eirenyx.PolicyReport, deps Dependencies) (report.Handler
 		}, nil
 	case eirenyx.PolicyTypeTrivy:
 		return &report.TrivyReportHandler{
-			Client: deps.Client,
-			Scheme: deps.Scheme,
+			Client:    deps.Client,
+			Scheme:    deps.Scheme,
+			K8sClient: deps.K8sClient,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown policy type: %s", r.Spec.Type)
